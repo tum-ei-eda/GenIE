@@ -1,2 +1,3 @@
 gitpython
 docker
+openlane @ git+https://github.com/PhilippvK/openlane2@genie
