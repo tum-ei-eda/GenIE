@@ -5,9 +5,9 @@ description = "TODO."
 authors = ["Philipp van Kempen <philipp.van-kempen@tum.de>"]
 readme = "README.md"
 license = "Apache-2.0"
-homepage = "TODO"
+homepage = "https://github.com/tum-ei-eda/GenIE"
 repository = "https://github.com/tum-ei-eda/GenIE"
-documentation = "TODO"
+documentation = "https://github.com/tum-ei-eda/GenIE/blob/main/README.md"
 
 
 [tool.poetry.dependencies]
@@ -23,6 +23,7 @@ psutil = ">=5.9.0"
 httpx = ">=0.22.0,<0.29"
 yamlcore = "^0.0.2"
 semver = "^3.0.2"
+openlane = "~=2.3.10"
 
 
 [tool.poetry.group.dev.dependencies]
