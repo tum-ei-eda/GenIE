@@ -30,6 +30,7 @@ genie_option_variables = [
         "DESIGN_DIR",
         Optional[Path],
         "The directory of the design. Should be set via command-line arguments or :meth:`Config.load` flags and not actual configuration files. If using a configuration file, ``DESIGN_DIR`` will be the directory where that file exists.",
+        default=".",
     ),
     # Variable(
     #     "DESIGN_NAME",
