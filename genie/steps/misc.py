@@ -108,6 +108,54 @@ class CheckDeps(GenIEStep):
 
 
 @GenIEStep.factory.register()
+class CheckMemgraph(GenIEStep):
+    """
+    TODO.
+    """
+
+    id = "Misc.CheckMemgraph"
+    name = "CheckMemgraph"
+    long_name = "Check Memgraph DB"
+    inputs = []
+    outputs = []
+
+    config_vars = [
+        Variable("SKIP_MEMGRAPH_CHECK", bool, "Do not check if CDFG is available.", default=False),
+        Variable("MEMGRAPH_HOST", str, "Hostname or URL of Memgraph Server", default="localhost"),
+        Variable("MEMGRAPH_PORT", int, "Port of Memgraph Server", default=7687),
+    ]
+
+    def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
+        kwargs, env = self.extract_env(kwargs)
+        views_updates: ViewsUpdate = {}
+        metrics_updates: MetricsUpdate = {}
+        config = self.config
+        skip_memgraph_check = config["SKIP_MEMGRAPH_CHECK"]
+        if skip_memgraph_check:
+            return views_updates, metrics_updates, {}
+
+        def check_port(host, port):
+            # Source - https://stackoverflow.com/a
+            # Posted by mrjandro, modified by community. See post 'Timeline' for change history
+            # Retrieved 2025-12-03, License - CC BY-SA 4.0
+            import socket
+
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            result = sock.connect_ex((host, port))
+            sock.close()
+            if result == 0:
+                return True
+            return False
+
+        memgraph_host = config["MEMGRAPH_HOST"]
+        memgraph_port = config["MEMGRAPH_PORT"]
+        assert check_port(
+            memgraph_host, memgraph_port
+        ), f"Memgraph DB is not reachable via {memgraph_host}:{memgraph_port}"
+        return views_updates, metrics_updates, {}
+
+
+@GenIEStep.factory.register()
 class FixPermissions(GenIEStep):
     """
     TODO.

@@ -9,6 +9,7 @@ class DefaultGenIEFlow(SequentialGenIEFlow):
         Misc.VerifyConfig,
         Misc.CheckDeps,
         Docker.StartMemgraphServer,
+        Misc.CheckMemgraph,
         Setup.SetupDemo,
         Setup.SetupPython,
         Setup.SetupCCache,

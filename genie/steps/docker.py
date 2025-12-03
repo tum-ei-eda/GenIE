@@ -46,7 +46,7 @@ class StartMemgraphServer(GenIEStep):
         if not use_memgraph_docker:
             return views_updates, metrics_updates, {}
         memgraph_host = config["MEMGRAPH_HOST"]
-        memgraph_on_localhost = memgraph_host not in ["localhost", "127.0.0.1"]
+        memgraph_on_localhost = memgraph_host in ["localhost", "127.0.0.1"]
         if not memgraph_on_localhost:
             raise ValueError(
                 f"Using non-local MEMGRAPH_HOST={memgraph_host} with USE_MEMGRAPH_DOCKER=true is not allowed"
