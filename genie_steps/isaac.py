@@ -36,7 +36,7 @@ class CreateSession(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -67,7 +67,7 @@ class LoadArtifacts(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 
@@ -99,7 +99,7 @@ class Analyze(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -130,7 +130,7 @@ class Visualize(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -161,7 +161,7 @@ class PickChoices(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -192,7 +192,7 @@ class PushCDFG(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -223,7 +223,7 @@ class QueryCandidates(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -254,7 +254,7 @@ class GenerateInstrs(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 
@@ -286,7 +286,7 @@ class GenerateETISSCore(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 
@@ -318,7 +318,7 @@ class RetargetLLVM(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -349,7 +349,7 @@ class RetargetISS(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -380,7 +380,7 @@ class CompareBench(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -411,7 +411,7 @@ class CompareBenchOthers(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -442,7 +442,7 @@ class CompareBenchPerInstr(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -473,7 +473,7 @@ class FilterCandidates(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -504,4 +504,4 @@ class CreateSpecGraph(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}

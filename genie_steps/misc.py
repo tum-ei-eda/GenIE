@@ -53,7 +53,7 @@ class VerifyConfig(GenIEStep):
         # errors_count = 0
         # metrics_updates.update({"design__lint_error__count": errors_count})
         # sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 def check_program(name: str, allow_none: bool = False, package: Optional[str] = None):
@@ -113,7 +113,7 @@ class CheckDeps(GenIEStep):
         # errors_count = 0
         # metrics_updates.update({"design__lint_error__count": errors_count})
         # sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -144,7 +144,7 @@ class FixPermissions(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -175,4 +175,4 @@ class CleanupTempFiles(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}

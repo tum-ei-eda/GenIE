@@ -4,7 +4,7 @@ from typing import List, Tuple, Optional, Union
 from openlane.steps.step import Step, ViewsUpdate, MetricsUpdate
 from openlane.steps.step import GenIEStep
 from openlane.config import Variable
-from openlane.state import State
+from openlane.state import DesignFormat, State
 from openlane.common import Path
 
 
@@ -17,6 +17,7 @@ class Bench(GenIEStep):
     id = "MLonMCU.Bench"
     name = "Run Benchmark"
     long_name = "Run MLonMCU Benchmark"
+    # inputs = [DesignFormat.LLVM_INSTALL_DIR]
     inputs = []
     outputs = []
 
@@ -143,7 +144,7 @@ class Bench(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -174,4 +175,4 @@ class Trace(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}

@@ -5,10 +5,10 @@ from typing import List, Tuple, Union, Optional
 
 from git import Repo
 
-from openlane.steps.step import Step, ViewsUpdate, MetricsUpdate
+from openlane.steps.step import Step, ViewsUpdate, MetricsUpdate, PathsUpdate
 from openlane.steps.step import GenIEStep
 from openlane.config import Variable
-from openlane.state import State
+from openlane.state import DesignFormat, State
 from openlane.common import Path
 
 
@@ -147,6 +147,7 @@ class SetupDemo(GenIEStep):
         kwargs, env = self.extract_env(kwargs)
         views_updates: ViewsUpdate = {}
         metrics_updates: MetricsUpdate = {}
+        paths_updates: PathsUpdate = {}
         print("self", self, dir(self))
         print("step_dir", self.step_dir)
         config = self.config
@@ -162,12 +163,17 @@ class SetupDemo(GenIEStep):
             clone_demo_repo(demo_repo, demo_dir, branch=demo_ref, refresh=force_refresh)
         demo_dir = pathlib.Path(demo_dir)
         assert demo_dir.is_dir()
+        paths_updates["demo.dir"] = demo_dir
+        install_dir = demo_dir / "install"
+        install_dir = pathlib.Path(install_dir)
+        install_dir.mkdir(exist_ok=True)
+        paths_updates["install.dir"] = install_dir
         # errors_count = 0
         # metrics_updates.update({"design__lint_error__count": errors_count})
         # views_updates["demo_dir"] = Path(demo_dir)
         # sleep(5.0)
         # self.config["DEMO_DIR"] = demo_dir
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, paths_updates
 
 
 @Step.factory.register()
@@ -183,16 +189,6 @@ class SetupETISS(GenIEStep):
     outputs = []
 
     config_vars = [
-        Variable(
-            "DEMO_DIR",
-            Optional[Path],
-            "Existing DEMO_DIR clone.",
-        ),
-        Variable(
-            "INSTALL_DIR",
-            Optional[Path],
-            "Existing install directory.",
-        ),
         Variable(
             "ETISS_INSTALL_DIR",
             Optional[Path],
@@ -218,13 +214,8 @@ class SetupETISS(GenIEStep):
         config = self.config
         force_refresh = config["FORCE_REFRESH"]
         run_dir = pathlib.Path(self.step_dir).parent
-        fallback_demo_dir = run_dir / "demo"
-        demo_dir = config.get("DEMO_DIR") or fallback_demo_dir
-        demo_dir = pathlib.Path(demo_dir)
-        # fallback_install_dir = run_dir/ "install"
-        fallback_install_dir = demo_dir / "install"
-        install_dir = config.get("INSTALL_DIR") or fallback_install_dir
-        install_dir = pathlib.Path(install_dir)
+        demo_dir = pathlib.Path(state_in.paths["demo.dir"])
+        install_dir = pathlib.Path(state_in.paths["install.dir"])
         # fallback_ccache_dir = run_dir / "ccache"
         fallback_ccache_dir = install_dir / "ccache"  # TODO: move to toplevel
         ccache_dir = config.get("CCACHE_DIR") or fallback_ccache_dir
@@ -235,7 +226,7 @@ class SetupETISS(GenIEStep):
         print("etiss_install_dir", etiss_install_dir)
         # input(">")
         if is_populated(etiss_install_dir) and not force_refresh:
-            return views_updates, metrics_updates
+            return views_updates, metrics_updates, {}
         scripts_dir = demo_dir / "scripts"
         setup_etiss_script = scripts_dir / "setup_etiss.sh"
         print("demo_dir", demo_dir)
@@ -256,7 +247,7 @@ class SetupETISS(GenIEStep):
             **kwargs,
         )
         print("subprocess_result", subprocess_result)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -270,6 +261,7 @@ class SetupLLVM(GenIEStep):
     long_name = "Setup LLVM"
     inputs = []
     outputs = []
+    # outputs = [DesignFormat.LLVM_INSTALL_DIR]
 
     config_vars = [
         Variable(
@@ -277,16 +269,6 @@ class SetupLLVM(GenIEStep):
             bool,
             "Update even if already populated.",
             default=False,
-        ),
-        Variable(
-            "DEMO_DIR",
-            Optional[Path],
-            "Existing DEMO_DIR clone.",
-        ),
-        Variable(
-            "INSTALL_DIR",
-            Optional[Path],
-            "Existing install directory.",
         ),
         Variable(
             "LLVM_INSTALL_DIR",
@@ -326,27 +308,34 @@ class SetupLLVM(GenIEStep):
         kwargs, env = self.extract_env(kwargs)
         views_updates: ViewsUpdate = {}
         metrics_updates: MetricsUpdate = {}
+        paths_updates: PathsUpdate = {}
         config = self.config
         force_refresh = config["FORCE_REFRESH"]
         run_dir = pathlib.Path(self.step_dir).parent
-        fallback_demo_dir = run_dir / "demo"
-        demo_dir = config.get("DEMO_DIR") or fallback_demo_dir
-        demo_dir = pathlib.Path(demo_dir)
-        # fallback_install_dir = run_dir/ "install"
-        fallback_install_dir = demo_dir / "install"
-        install_dir = config.get("INSTALL_DIR") or fallback_install_dir
-        install_dir = pathlib.Path(install_dir)
+        demo_dir = pathlib.Path(state_in.paths["demo.dir"])
+        install_dir = pathlib.Path(state_in.paths["install.dir"])
         # fallback_ccache_dir = run_dir / "ccache"
         fallback_ccache_dir = install_dir / "ccache"  # TODO: move to toplevel
         ccache_dir = config.get("CCACHE_DIR") or fallback_ccache_dir
         ccache_dir = pathlib.Path(ccache_dir)
         fallback_llvm_install_dir = install_dir / "llvm"
+
+        def save_path_file(name, x):
+            ret = pathlib.Path(self.step_dir) / f"{name}.path"
+            with open(ret, "w") as f:
+                f.write(str(x))
+            return Path(ret)
+
         llvm_install_dir = config.get("LLVM_INSTALL_DIR") or fallback_llvm_install_dir
         llvm_install_dir = pathlib.Path(llvm_install_dir)
+        # views_updates[DesignFormat.LLVM_INSTALL_DIR] = {"foo": save_path_file("llvm_install_dir", llvm_install_dir)}
+        # views_updates[DesignFormat.LLVM_INSTALL_DIR] = [Path(llvm_install_dir)]
+        # metrics_updates["llvm_install_dir"] = llvm_install_dir
+        paths_updates["llvm.install_dir"] = llvm_install_dir
         print("llvm_install_dir", llvm_install_dir)
         # input(">")
         if is_populated(llvm_install_dir) and not force_refresh:
-            return views_updates, metrics_updates
+            return views_updates, metrics_updates, paths_updates
         fallback_mgclient_install_dir = install_dir / "mgclient"
         mgclient_install_dir = config.get("MGCLIENT_INSTALL_DIR") or fallback_mgclient_install_dir
         mgclient_install_dir = pathlib.Path(mgclient_install_dir)
@@ -381,7 +370,7 @@ class SetupLLVM(GenIEStep):
             **kwargs,
         )
         print("subprocess_result", subprocess_result)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, paths_updates
 
 
 @Step.factory.register()
@@ -398,19 +387,9 @@ class SetupMLonMCU(GenIEStep):
 
     config_vars = [
         Variable(
-            "DEMO_DIR",
-            Optional[Path],
-            "Existing DEMO_DIR clone.",
-        ),
-        Variable(
             "VENV_DIR",
             Optional[Path],
             "Existing venv directory.",
-        ),
-        Variable(
-            "INSTALL_DIR",
-            Optional[Path],
-            "Existing install directory.",
         ),
         # TODO: get mlonmcu via pip
         Variable(
@@ -435,16 +414,12 @@ class SetupMLonMCU(GenIEStep):
         kwargs, env = self.extract_env(kwargs)
         views_updates: ViewsUpdate = {}
         metrics_updates: MetricsUpdate = {}
+        paths_updates: MetricsUpdate = {}
         config = self.config
         force_refresh = config["FORCE_REFRESH"]
         run_dir = pathlib.Path(self.step_dir).parent
-        fallback_demo_dir = run_dir / "demo"
-        demo_dir = config.get("DEMO_DIR") or fallback_demo_dir
-        demo_dir = pathlib.Path(demo_dir)
-        # fallback_install_dir = run_dir/ "install"
-        fallback_install_dir = demo_dir / "install"
-        install_dir = config.get("INSTALL_DIR") or fallback_install_dir
-        install_dir = pathlib.Path(install_dir)
+        demo_dir = pathlib.Path(state_in.paths["demo.dir"])
+        install_dir = pathlib.Path(state_in.paths["install.dir"])
         # fallback_ccache_dir = run_dir / "ccache"
         fallback_ccache_dir = install_dir / "ccache"  # TODO: move to toplevel
         ccache_dir = config.get("CCACHE_DIR") or fallback_ccache_dir
@@ -461,8 +436,9 @@ class SetupMLonMCU(GenIEStep):
         mlonmcu_home_dir = config.get("ETISS_HOME") or fallback_mlonmcu_home_dir
         mlonmcu_home_dir = pathlib.Path(mlonmcu_home_dir)
         print("mlonmcu_home_dir", mlonmcu_home_dir)
+        paths_updates["mlonmcu.home"] = mlonmcu_home_dir
         if is_populated(mlonmcu_home_dir) and not force_refresh:
-            return views_updates, metrics_updates
+            return views_updates, metrics_updates, paths_updates
         scripts_dir = demo_dir / "scripts"
         setup_mlonmcu_script = scripts_dir / "setup_mlonmcu.sh"
         print("setup_mlonmcu_script", setup_mlonmcu_script)
@@ -476,7 +452,8 @@ class SetupMLonMCU(GenIEStep):
         env["PYTHONPATH"] = new_pythonpath
         # env["ETISS_DIR"] = ?  # TODO
         # env["ETISS_INSTALL_DIR"] = ?  # TODO
-        # env["LLVM_INSTALL_DIR"] = ?  # TODO
+        llvm_install_dir = state_in.paths["llvm.install_dir"]
+        env["LLVM_INSTALL_DIR"] = llvm_install_dir
         # env["MLONMCU_TEMPLATE"] = template  # TODO: expose
         env["TOP_DIR"] = run_dir
         # check = True
@@ -495,7 +472,7 @@ class SetupMLonMCU(GenIEStep):
         #     **kwargs,
         # )
         # print("subprocess_result", subprocess_result)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, paths_updates
 
 
 @Step.factory.register()
@@ -526,7 +503,7 @@ class SetupM2ISAR(GenIEStep):
         errors_count = 0
         metrics_updates.update({"design__lint_error__count": errors_count})
         sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -542,11 +519,6 @@ class SetupPython(GenIEStep):
     outputs = []
 
     config_vars = [
-        Variable(
-            "DEMO_DIR",
-            Optional[Path],
-            "Existing DEMO_DIR clone.",
-        ),
         Variable(
             "VENV_DIR",
             Optional[Path],
@@ -570,16 +542,14 @@ class SetupPython(GenIEStep):
         print("config", config)
         run_dir = pathlib.Path(self.step_dir).parent
         # force_refresh = config["FORCE_REFRESH"]
-        fallback_demo_dir = run_dir / "demo"
-        demo_dir = config.get("DEMO_DIR") or fallback_demo_dir
-        demo_dir = pathlib.Path(demo_dir)
+        demo_dir = pathlib.Path(state_in.paths["demo.dir"])
         # fallback_venv_dir = run_dir / "venv"
         fallback_venv_dir = demo_dir / "venv"  # TODO: move to toplevel
         venv_dir = config.get("VENV_DIR") or fallback_venv_dir
         venv_dir = pathlib.Path(venv_dir)
         force_refresh = config["FORCE_REFRESH"]
         if is_populated(venv_dir) and not force_refresh:
-            return views_updates, metrics_updates
+            return views_updates, metrics_updates, {}
         scripts_dir = demo_dir / "scripts"
         setup_python_script = scripts_dir / "setup_python.sh"
         print("demo_dir", demo_dir)
@@ -600,7 +570,7 @@ class SetupPython(GenIEStep):
         # errors_count = 0466
         # metrics_updates.update({"design__lint_error__count": errors_count})
         # sleep(5.0)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -616,16 +586,6 @@ class SetupMgclient(GenIEStep):
     outputs = []
 
     config_vars = [
-        Variable(
-            "DEMO_DIR",
-            Optional[Path],
-            "Existing DEMO_DIR clone.",
-        ),
-        Variable(
-            "INSTALL_DIR",
-            Optional[Path],
-            "Existing install directory.",
-        ),
         Variable(
             "MGCLIENT_INSTALL_DIR",
             Optional[Path],
@@ -651,13 +611,8 @@ class SetupMgclient(GenIEStep):
         config = self.config
         force_refresh = config["FORCE_REFRESH"]
         run_dir = pathlib.Path(self.step_dir).parent
-        fallback_demo_dir = run_dir / "demo"
-        demo_dir = config.get("DEMO_DIR") or fallback_demo_dir
-        demo_dir = pathlib.Path(demo_dir)
-        # fallback_install_dir = run_dir/ "install"
-        fallback_install_dir = demo_dir / "install"
-        install_dir = config.get("INSTALL_DIR") or fallback_install_dir
-        install_dir = pathlib.Path(install_dir)
+        demo_dir = pathlib.Path(state_in.paths["demo.dir"])
+        install_dir = pathlib.Path(state_in.paths["install.dir"])
         # fallback_ccache_dir = run_dir / "ccache"
         fallback_ccache_dir = install_dir / "ccache"  # TODO: move to toplevel
         ccache_dir = config.get("CCACHE_DIR") or fallback_ccache_dir
@@ -668,7 +623,7 @@ class SetupMgclient(GenIEStep):
         print("mgclient_install_dir", mgclient_install_dir)
         # input(">")
         if is_populated(mgclient_install_dir) and not force_refresh:
-            return views_updates, metrics_updates
+            return views_updates, metrics_updates, {}
         scripts_dir = demo_dir / "scripts"
         setup_mgclient_script = scripts_dir / "setup_mgclient.sh"
         print("demo_dir", demo_dir)
@@ -688,7 +643,7 @@ class SetupMgclient(GenIEStep):
             **kwargs,
         )
         print("subprocess_result", subprocess_result)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
 
 
 @Step.factory.register()
@@ -704,16 +659,6 @@ class SetupCCache(GenIEStep):
     outputs = []
 
     config_vars = [
-        Variable(
-            "DEMO_DIR",
-            Optional[Path],
-            "Existing DEMO_DIR clone.",
-        ),
-        Variable(
-            "INSTALL_DIR",
-            Optional[Path],
-            "Existing install directory.",
-        ),
         Variable(
             "CCACHE_DIR",
             Optional[Path],
@@ -734,19 +679,14 @@ class SetupCCache(GenIEStep):
         config = self.config
         force_refresh = config["FORCE_REFRESH"]
         run_dir = pathlib.Path(self.step_dir).parent
-        fallback_demo_dir = run_dir / "demo"
-        demo_dir = config.get("DEMO_DIR") or fallback_demo_dir
-        demo_dir = pathlib.Path(demo_dir)
-        # fallback_install_dir = run_dir / "install"
-        fallback_install_dir = demo_dir / "install"
-        install_dir = config.get("INSTALL_DIR") or fallback_install_dir
-        install_dir = pathlib.Path(install_dir)
+        demo_dir = pathlib.Path(state_in.paths["demo.dir"])
+        install_dir = pathlib.Path(state_in.paths["install.dir"])
         # fallback_ccache_dir = run_dir / "ccache"
         fallback_ccache_dir = install_dir / "ccache"  # TODO: move to toplevel
         ccache_dir = config.get("CCACHE_DIR") or fallback_ccache_dir
         ccache_dir = pathlib.Path(ccache_dir)
         if is_populated(ccache_dir) and not force_refresh:
-            return views_updates, metrics_updates
+            return views_updates, metrics_updates, {}
         scripts_dir = demo_dir / "scripts"
         setup_ccache_script = scripts_dir / "setup_ccache.sh"
         print("demo_dir", demo_dir)
@@ -766,4 +706,4 @@ class SetupCCache(GenIEStep):
             **kwargs,
         )
         print("subprocess_result", subprocess_result)
-        return views_updates, metrics_updates
+        return views_updates, metrics_updates, {}
