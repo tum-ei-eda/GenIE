@@ -31,6 +31,10 @@ class StartMemgraphServer(GenIEStep):
             "Name of docker conatainer.",
             default="memgraph",
         ),
+        Variable("USE_MEMGRAPH_DOCKER", bool, "Run Memgraph CDFG in docker container.", default=True),
+        # Variable("SKIP_MEMGRAPH_SETUP", bool, "Do not install memgraph db automatically.", default=False),
+        Variable("MEMGRAPH_HOST", str, "Hostname or URL of Memgraph Server", default="localhost"),
+        Variable("MEMGRAPH_PORT", int, "Port of Memgraph Server", default=7687),
     ]
 
     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
@@ -38,8 +42,19 @@ class StartMemgraphServer(GenIEStep):
         views_updates: ViewsUpdate = {}
         metrics_updates: MetricsUpdate = {}
         config = self.config
+        use_memgraph_docker = config["USE_MEMGRAPH_DOCKER"]
+        if not use_memgraph_docker:
+            return views_updates, metrics_updates, {}
+        memgraph_host = config["MEMGRAPH_HOST"]
+        memgraph_on_localhost = memgraph_host not in ["localhost", "127.0.0.1"]
+        if not memgraph_on_localhost:
+            raise ValueError(
+                f"Using non-local MEMGRAPH_HOST={memgraph_host} with USE_MEMGRAPH_DOCKER=true is not allowed"
+            )
         image = config["MEMGRAPH_IMAGE"]
         name = config["MEMGRAPH_CONTAINER"]
+        memgraph_port = config["MEMGRAPH_PORT"]
+        # skip_memgraph_setup = config["SKIP_MEMGRAPH_SETUP"]
         # print("image", image)
         # print("name", name)
         import docker
@@ -59,7 +74,9 @@ class StartMemgraphServer(GenIEStep):
         # print("is_existing", is_existing)
         # print("is_running", is_running)
         if not is_existing:
-            client.containers.run(image, detach=True, name=name, ports={"7687": 7687, "7444": 7444, "3000": 3000})
+            client.containers.run(
+                image, detach=True, name=name, ports={f"{memgraph_port}": 7687, "7444": 7444, "3000": 3000}
+            )
         elif not is_running:
             container.start()
         else:

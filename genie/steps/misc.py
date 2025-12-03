@@ -2,6 +2,7 @@ from time import sleep
 from typing import Tuple
 
 from genie.steps.step import GenIEStep, ViewsUpdate, MetricsUpdate
+from genie.config import Variable
 from genie.state import State
 
 from .utils import check_program
@@ -66,11 +67,10 @@ class CheckDeps(GenIEStep):
     outputs = []
 
     config_vars = [
-        # Variable(
-        #     "VERILOG_FILES",
-        #     List[Path],
-        #     "The paths of the design's Verilog files.",
-        # ),
+        Variable("USE_MEMGRAPH_DOCKER", bool, "Run Memgraph CDFG in docker container.", default=True),
+        Variable("SKIP_MEMGRAPH_SETUP", bool, "Do not install memgraph db automatically.", default=False),
+        Variable("MEMGRAPH_HOST", str, "Hostname or URL of Memgraph Server", default="localhost"),
+        # Variable("MEMGRAPH_PORT", int, "Port of Memgraph Server", default=7687),
     ]
 
     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
@@ -79,6 +79,7 @@ class CheckDeps(GenIEStep):
         metrics_updates: MetricsUpdate = {}
         required_commands = []
         fail_on_err = True
+        config = self.config
         command2package = {"pdfunite": "poppler-utils", "dot": "graphviz", "ninja": "ninja-build"}
         command2help = {"rustc": "TODO"}
         required_commands += ["cmake", "ninja", "wget", "dot", "pdfunite", "rustc"]
@@ -86,6 +87,13 @@ class CheckDeps(GenIEStep):
         check_docker = True
         if check_docker:
             required_commands += ["docker"]
+        use_memgraph_docker = config["USE_MEMGRAPH_DOCKER"]
+        memgraph_host = config["MEMGRAPH_HOST"]
+        skip_memgraph_setup = config["SKIP_MEMGRAPH_SETUP"]
+        memgraph_on_localhost = memgraph_host not in ["localhost", "127.0.0.1"]
+        check_memgraph = not use_memgraph_docker and memgraph_on_localhost and not skip_memgraph_setup
+        if check_memgraph:
+            required_commands += ["mgconsole"]
         check_python3 = True
         if check_python3:
             required_commands += ["python3"]
