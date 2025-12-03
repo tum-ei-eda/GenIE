@@ -1,6 +1,5 @@
 from genie.flows import GenIEFlow, SequentialGenIEFlow
 from genie.steps import Setup, Misc, MLonMCU, ISAAC, CI, Docker
-from genie.__main__ import cli
 
 
 @GenIEFlow.factory.register()
@@ -46,11 +45,3 @@ class DefaultGenIEFlow(SequentialGenIEFlow):
         Misc.CleanupTempFiles,
         # MyStep,
     ]
-    # ?
-
-
-# flow = DefaultGenIEFlow({}, design_dir=".")
-# flow.start()
-
-if __name__ == "__main__":
-    cli()
