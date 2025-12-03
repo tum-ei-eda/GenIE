@@ -81,7 +81,7 @@ class CheckDeps(GenIEStep):
         fail_on_err = True
         config = self.config
         command2package = {"pdfunite": "poppler-utils", "dot": "graphviz", "ninja": "ninja-build"}
-        command2help = {"rustc": "TODO"}
+        command2help = {"rustc": "curl https://sh.rustup.rs -sSf | sh"}
         required_commands += ["cmake", "ninja", "wget", "dot", "pdfunite", "rustc"]
         # TODO: check versions?
         check_docker = True
@@ -151,7 +151,7 @@ class CheckMemgraph(GenIEStep):
         memgraph_port = config["MEMGRAPH_PORT"]
         assert check_port(
             memgraph_host, memgraph_port
-        ), f"Memgraph DB is not reachable via {memgraph_host}:{memgraph_port}"
+        ), f"Memgraph DB is not reachable via {memgraph_host}:{memgraph_port}. Please install/start Memgraph Server or set SKIP_MEMGRAPH_CHECK=true"
         return views_updates, metrics_updates, {}
 
 
