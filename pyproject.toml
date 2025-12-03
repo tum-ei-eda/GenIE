@@ -25,6 +25,7 @@ yamlcore = "^0.0.2"
 semver = "^3.0.2"
 openlane = "~=2.3.10"
 GitPython = "~=3.1.45"
+docker = "~=7.1.0"
 
 
 [tool.poetry.group.dev.dependencies]
