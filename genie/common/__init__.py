@@ -26,11 +26,11 @@ from openlane.common.generic_dict import (
     GenericImmutableDict,
     copy_recursive,
 )
+from .misc import get_genie_root
 from openlane.common.misc import (
     idem,
-    get_openlane_root,
-    get_script_dir,
-    get_opdks_rev,
+    # get_script_dir,
+    # get_opdks_rev,
     slugify,
     protected,
     final,

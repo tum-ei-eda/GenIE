@@ -32,8 +32,8 @@ class VerifyConfig(GenIEStep):
         views_updates: ViewsUpdate = {}
         metrics_updates: MetricsUpdate = {}
         config = self.config
-        print("self", self, dir(self))
-        print("step_dir", self.step_dir)
+        # print("self", self, dir(self))
+        # print("step_dir", self.step_dir)
         # print("config", config)
         # print("state_in", state_in)
         bench = config.get("BENCH")

@@ -32,7 +32,7 @@ def clone(
     recursive: bool = False,
     refresh: bool = False,
 ):
-    print("clone", url, dest, branch, submodules, recursive, refresh)
+    # print("clone", url, dest, branch, submodules, recursive, refresh)
     """Helper function for cloning a repository.
 
     Parameters
@@ -53,27 +53,27 @@ def clone(
     mkdirs(dest)
 
     def update_submodules(repo):
-        print("update_submodules")
+        # print("update_submodules")
         if recursive:
-            print("recursive")
+            # print("recursive")
             if submodules:
-                print("submodules")
+                # print("submodules")
                 for submodule in submodules:
                     assert isinstance(submodule, str), f"Submodules should be a list of str. {submodule} is not str."
                 repo.git.submodule("update", "--init", "--recursive", "--", *submodules)
             else:
-                print("!submodules")
+                # print("!submodules")
                 repo.git.submodule("update", "--init", "--recursive")
         else:
-            print("!recursive")
+            # print("!recursive")
             # TODO: share code
             if submodules:
-                print("submodules")
+                # print("submodules")
                 for submodule in submodules:
                     assert isinstance(submodule, str), f"Submodules should be a list of str. {submodule} is not str."
                 repo.git.submodule("update", "--init", "--", *submodules)
             else:
-                print("!submodules")
+                # print("!submodules")
                 repo.git.submodule("update", "--init")
 
     if is_populated(dest):
@@ -147,10 +147,10 @@ class SetupDemo(GenIEStep):
         views_updates: ViewsUpdate = {}
         metrics_updates: MetricsUpdate = {}
         paths_updates: PathsUpdate = {}
-        print("self", self, dir(self))
-        print("step_dir", self.step_dir)
+        # print("self", self, dir(self))
+        # print("step_dir", self.step_dir)
         config = self.config
-        print("config", config)
+        # print("config", config)
         run_dir = pathlib.Path(self.step_dir).parent
         force_refresh = config["FORCE_REFRESH"]
         demo_dir = config.get("DEMO_DIR")
@@ -222,14 +222,14 @@ class SetupETISS(GenIEStep):
         fallback_etiss_install_dir = install_dir / "etiss"
         etiss_install_dir = config.get("ETISS_INSTALL_DIR") or fallback_etiss_install_dir
         etiss_install_dir = pathlib.Path(etiss_install_dir)
-        print("etiss_install_dir", etiss_install_dir)
+        # print("etiss_install_dir", etiss_install_dir)
         # input(">")
         if is_populated(etiss_install_dir) and not force_refresh:
             return views_updates, metrics_updates, {}
         scripts_dir = demo_dir / "scripts"
         setup_etiss_script = scripts_dir / "setup_etiss.sh"
-        print("demo_dir", demo_dir)
-        print("setup_etiss_script", setup_etiss_script)
+        # print("demo_dir", demo_dir)
+        # print("setup_etiss_script", setup_etiss_script)
         assert setup_etiss_script.is_file()
         # command = self.get_command()
         command = [setup_etiss_script]
@@ -245,7 +245,7 @@ class SetupETISS(GenIEStep):
             check=check,
             **kwargs,
         )
-        print("subprocess_result", subprocess_result)
+        # print("subprocess_result", subprocess_result)
         return views_updates, metrics_updates, {}
 
 
@@ -331,24 +331,24 @@ class SetupLLVM(GenIEStep):
         # views_updates[DesignFormat.LLVM_INSTALL_DIR] = [Path(llvm_install_dir)]
         # metrics_updates["llvm_install_dir"] = llvm_install_dir
         paths_updates["llvm.install_dir"] = llvm_install_dir
-        print("llvm_install_dir", llvm_install_dir)
+        # print("llvm_install_dir", llvm_install_dir)
         # input(">")
         if is_populated(llvm_install_dir) and not force_refresh:
             return views_updates, metrics_updates, paths_updates
         fallback_mgclient_install_dir = install_dir / "mgclient"
         mgclient_install_dir = config.get("MGCLIENT_INSTALL_DIR") or fallback_mgclient_install_dir
         mgclient_install_dir = pathlib.Path(mgclient_install_dir)
-        print("mgclient_install_dir", mgclient_install_dir)
+        # print("mgclient_install_dir", mgclient_install_dir)
         scripts_dir = demo_dir / "scripts"
         setup_llvm_script = scripts_dir / "setup_llvm.sh"
-        print("setup_llvm_script", setup_llvm_script)
+        # print("setup_llvm_script", setup_llvm_script)
         assert setup_llvm_script.is_file()
         download_llvm_script = scripts_dir / "download_llvm.sh"
-        print("download_llvm_script", download_llvm_script)
+        # print("download_llvm_script", download_llvm_script)
         assert download_llvm_script.is_file()
         # command = self.get_command()
         download_llvm = config["DOWNLOAD_LLVM"]
-        print("download_llvm", download_llvm)
+        # print("download_llvm", download_llvm)
         command = [download_llvm_script if download_llvm else setup_llvm_script]
         env["INSTALL_DIR"] = install_dir  # TODO: eliminate, replace by LLVM_INSTALL_DIR
         env["TOP_DIR"] = run_dir
@@ -368,7 +368,7 @@ class SetupLLVM(GenIEStep):
             check=check,
             **kwargs,
         )
-        print("subprocess_result", subprocess_result)
+        # print("subprocess_result", subprocess_result)
         return views_updates, metrics_updates, paths_updates
 
 
@@ -430,17 +430,17 @@ class SetupMLonMCU(GenIEStep):
         fallback_mlonmcu_dir = demo_dir / "mlonmcu"
         mlonmcu_dir = config.get("ETISS_HOME") or fallback_mlonmcu_dir
         mlonmcu_dir = pathlib.Path(mlonmcu_dir)
-        print("mlonmcu_dir", mlonmcu_dir)
+        # print("mlonmcu_dir", mlonmcu_dir)
         fallback_mlonmcu_home_dir = install_dir / "mlonmcu"
         mlonmcu_home_dir = config.get("ETISS_HOME") or fallback_mlonmcu_home_dir
         mlonmcu_home_dir = pathlib.Path(mlonmcu_home_dir)
-        print("mlonmcu_home_dir", mlonmcu_home_dir)
+        # print("mlonmcu_home_dir", mlonmcu_home_dir)
         paths_updates["mlonmcu.home"] = mlonmcu_home_dir
         if is_populated(mlonmcu_home_dir) and not force_refresh:
             return views_updates, metrics_updates, paths_updates
         scripts_dir = demo_dir / "scripts"
         setup_mlonmcu_script = scripts_dir / "setup_mlonmcu.sh"
-        print("setup_mlonmcu_script", setup_mlonmcu_script)
+        # print("setup_mlonmcu_script", setup_mlonmcu_script)
         assert setup_mlonmcu_script.is_file()
         # command = self.get_command()
         env["INSTALL_DIR"] = install_dir  # TODO: eliminate, replace by MLONMCU_HOME
@@ -535,10 +535,10 @@ class SetupPython(GenIEStep):
         kwargs, env = self.extract_env(kwargs)
         views_updates: ViewsUpdate = {}
         metrics_updates: MetricsUpdate = {}
-        print("self", self, dir(self))
-        print("step_dir", self.step_dir)
+        # print("self", self, dir(self))
+        # print("step_dir", self.step_dir)
         config = self.config
-        print("config", config)
+        # print("config", config)
         # run_dir = pathlib.Path(self.step_dir).parent
         # force_refresh = config["FORCE_REFRESH"]
         demo_dir = pathlib.Path(state_in.paths["demo.dir"])
@@ -551,8 +551,8 @@ class SetupPython(GenIEStep):
             return views_updates, metrics_updates, {}
         scripts_dir = demo_dir / "scripts"
         setup_python_script = scripts_dir / "setup_python.sh"
-        print("demo_dir", demo_dir)
-        print("setup_python_script", setup_python_script)
+        # print("demo_dir", demo_dir)
+        # print("setup_python_script", setup_python_script)
         assert setup_python_script.is_file()
         # command = self.get_command()
         command = [setup_python_script]
@@ -565,7 +565,7 @@ class SetupPython(GenIEStep):
             check=check,
             **kwargs,
         )
-        print("subprocess_result", subprocess_result)
+        # print("subprocess_result", subprocess_result)
         # errors_count = 0466
         # metrics_updates.update({"design__lint_error__count": errors_count})
         # sleep(5.0)
@@ -619,14 +619,14 @@ class SetupMgclient(GenIEStep):
         fallback_mgclient_install_dir = install_dir / "mgclient"
         mgclient_install_dir = config.get("MGCLIENT_INSTALL_DIR") or fallback_mgclient_install_dir
         mgclient_install_dir = pathlib.Path(mgclient_install_dir)
-        print("mgclient_install_dir", mgclient_install_dir)
+        # print("mgclient_install_dir", mgclient_install_dir)
         # input(">")
         if is_populated(mgclient_install_dir) and not force_refresh:
             return views_updates, metrics_updates, {}
         scripts_dir = demo_dir / "scripts"
         setup_mgclient_script = scripts_dir / "setup_mgclient.sh"
-        print("demo_dir", demo_dir)
-        print("setup_mgclient_script", setup_mgclient_script)
+        # print("demo_dir", demo_dir)
+        # print("setup_mgclient_script", setup_mgclient_script)
         assert setup_mgclient_script.is_file()
         # command = self.get_command()
         command = [setup_mgclient_script]
@@ -641,7 +641,7 @@ class SetupMgclient(GenIEStep):
             check=check,
             **kwargs,
         )
-        print("subprocess_result", subprocess_result)
+        # print("subprocess_result", subprocess_result)
         return views_updates, metrics_updates, {}
 
 
@@ -688,8 +688,8 @@ class SetupCCache(GenIEStep):
             return views_updates, metrics_updates, {}
         scripts_dir = demo_dir / "scripts"
         setup_ccache_script = scripts_dir / "setup_ccache.sh"
-        print("demo_dir", demo_dir)
-        print("setup_ccache_script", setup_ccache_script)
+        # print("demo_dir", demo_dir)
+        # print("setup_ccache_script", setup_ccache_script)
         assert setup_ccache_script.is_file()
         # command = self.get_command()
         command = [setup_ccache_script]
@@ -704,5 +704,5 @@ class SetupCCache(GenIEStep):
             check=check,
             **kwargs,
         )
-        print("subprocess_result", subprocess_result)
+        # print("subprocess_result", subprocess_result)
         return views_updates, metrics_updates, {}

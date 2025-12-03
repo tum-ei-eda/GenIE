@@ -789,11 +789,13 @@ class GenIEStep(ABC):
                     "Attempted to initialize abstract Step, and Step designated in configuration file not found.",
                     id=id,
                 )
+            # print("state_in", state_in)
             return Target.load(config, state_in)
 
         if not isinstance(config, GenIEConfig):
             config = Self._load_config_from_file(config)
         if not isinstance(state_in, State):
+            # print("state_in", state_in)
             state_in = State.loads(open(state_in).read())
         return Self(
             config=config,
@@ -922,7 +924,7 @@ class GenIEStep(ABC):
         # 1. Config
         dumpable_config: dict = copy_recursive(self.config, translator=visitor)
         dumpable_config["meta"] = {
-            "openlane_version": __version__,
+            "genie_version": __version__,
             "step": self.__class__.get_implementation_id(),
         }
 

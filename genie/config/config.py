@@ -100,7 +100,7 @@ class Meta:
     flow: Union[None, str, List[str]] = None
     substituting_steps: Union[None, Dict[str, Union[str, None]]] = None
     step: Union[None, str] = None
-    openlane_version: Union[None, str] = __version__
+    genie_version: Union[None, str] = __version__
 
     def copy(self) -> "Meta":
         return dataclasses.replace(self)
