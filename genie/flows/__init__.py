@@ -20,5 +20,7 @@ as a number of built-in flows.
 """
 from .flow import FlowError, FlowException, FlowProgressBar, GenIEFlow
 from .sequential import SequentialGenIEFlow
+from .default import DefaultGenIEFlow
+from .demo import Demo
 from . import builtins
 from .cli import cloup_flow_opts
