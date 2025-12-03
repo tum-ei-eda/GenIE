@@ -1,0 +1,67 @@
+[tool.poetry]
+name = "genie"
+version = "0.1.0"
+description = "TODO."
+authors = ["Philipp van Kempen <philipp.van-kempen@tum.de>"]
+readme = "README.md"
+license = "Apache-2.0"
+homepage = "TODO"
+repository = "https://github.com/tum-ei-eda/GenIE"
+documentation = "TODO"
+
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4"
+click = ">=8,<8.2"
+cloup = ">=3.0.5,<4"
+pyyaml = ">=5,<7"
+rich = ">=12,<14"
+lxml = ">=4.9.0"
+deprecated = ">=1.2.10,<2"
+libparse = ">=0.3.1,<1"
+psutil = ">=5.9.0"
+httpx = ">=0.22.0,<0.29"
+yamlcore = "^0.0.2"
+semver = "^3.0.2"
+
+
+[tool.poetry.group.dev.dependencies]
+wheel = "*"
+black = ">=24.4.0,<25"
+
+flake8 = ">=4"
+flake8-no-implicit-concat = "0.3.3"
+flake8-pytest-style = "*"
+
+mypy = ">=1.9.0,<1.10.0"
+lxml-stubs = "*"
+types-urllib3 = "*"
+types-typed-ast = "*"
+types-six = "*"
+types-setuptools = "*"
+types-PyYAML = "*"
+types-docutils = "*"
+types-decorator = "*"
+types-commonmark = "*"
+types-colorama = "*"
+types-Pygments = "*"
+types-Deprecated = "*"
+types-psutil = "*"
+
+pytest = "*"
+pytest-xdist = "*"
+pytest-cov = "*"
+pyfakefs = ">=5.2.3,<6"
+pillow = ">=10.0.1,<11"
+
+
+[tool.poetry.scripts]
+genie = "genie.__main__:cli"
+"genie.steps" = "genie.steps.__main__:cli"
+"genie.config" = "genie.config.__main__:cli"
+"genie.state" = "genie.state.__main__:cli"
+"genie.env_info" = "genie:env_info_cli"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
