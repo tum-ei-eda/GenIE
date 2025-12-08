@@ -25,7 +25,9 @@ TARGET: etiss  # TODO: CVA5 verilator?
 ### CDFG_STAGE: 32  # 32 -> post finalizeisel/expandpseudos
 ### FORCE_PURGE_DB: 1
 ###
-### # ISAAC
+# ISAAC
+ISAAC_LOG_LEVEL: info
+ISAAC_PROGRESS: true
 ### CHECK_POTENTIAL_MIN_SUPPORTED: 0.15
 ### CHOOSE_BB_THRESHOLD: 0.9
 ### CHOOSE_BB_MIN_WEIGHT: 0.05
