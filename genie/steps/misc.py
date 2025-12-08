@@ -6,6 +6,7 @@ from genie.config import Variable
 from genie.state import State
 
 from .utils import check_program
+from .common_vars import mlonmcu_docker_vars, ccache_vars
 
 
 @GenIEStep.factory.register()
@@ -68,6 +69,11 @@ class CheckDeps(GenIEStep):
 
     config_vars = [
         Variable("USE_MEMGRAPH_DOCKER", bool, "Run Memgraph CDFG in docker container.", default=True),
+        *mlonmcu_docker_vars,
+        *ccache_vars,
+        Variable("USE_ETISS_DOCKER", bool, "Run M2-ISA-R in docker container.", default=False),
+        Variable("USE_SEAL5_DOCKER", bool, "Run Seal5 in docker container.", default=False),
+        Variable("USE_HLS_DOCKER", bool, "Run HLS tools in docker container.", default=False),
         Variable("SKIP_MEMGRAPH_SETUP", bool, "Do not install memgraph db automatically.", default=False),
         Variable("MEMGRAPH_HOST", str, "Hostname or URL of Memgraph Server", default="localhost"),
         # Variable("MEMGRAPH_PORT", int, "Port of Memgraph Server", default=7687),
@@ -80,14 +86,28 @@ class CheckDeps(GenIEStep):
         required_commands = []
         fail_on_err = True
         config = self.config
+        check_ccache = config["ENABLE_CCACHE"]
         command2package = {"pdfunite": "poppler-utils", "dot": "graphviz", "ninja": "ninja-build"}
         command2help = {"rustc": "curl https://sh.rustup.rs -sSf | sh"}
         required_commands += ["cmake", "ninja", "wget", "dot", "pdfunite", "rustc"]
         # TODO: check versions?
-        check_docker = True
+        use_memgraph_docker = config["USE_MEMGRAPH_DOCKER"]
+        use_mlonmcu_docker = config["USE_MLONMCU_DOCKER"]
+        use_etiss_docker = config["USE_ETISS_DOCKER"]
+        use_seal5_docker = config["USE_SEAL5_DOCKER"]
+        use_hls_docker = config["USE_HLS_DOCKER"]
+        use_docker_list = [
+            use_memgraph_docker,
+            use_mlonmcu_docker,
+            use_etiss_docker,
+            use_seal5_docker,
+            use_hls_docker,
+        ]
+        check_docker = any(use_docker_list)
+        if check_ccache:
+            required_commands += ["ccache"]
         if check_docker:
             required_commands += ["docker"]
-        use_memgraph_docker = config["USE_MEMGRAPH_DOCKER"]
         memgraph_host = config["MEMGRAPH_HOST"]
         skip_memgraph_setup = config["SKIP_MEMGRAPH_SETUP"]
         memgraph_on_localhost = memgraph_host not in ["localhost", "127.0.0.1"]
@@ -95,6 +115,7 @@ class CheckDeps(GenIEStep):
         if check_memgraph:
             required_commands += ["mgconsole"]
         check_python3 = True
+        # TODO: check python version!
         if check_python3:
             required_commands += ["python3"]
         for command in required_commands:
