@@ -2,13 +2,14 @@ import os
 import pathlib
 
 # from time import sleep
-from typing import Tuple, Optional, Union, Dict
+from typing import Tuple, Optional, Union, Dict, List
 
 from genie.steps.step import GenIEStep, ViewsUpdate, MetricsUpdate, PathsUpdate
 from genie.config import Variable
 from genie.state import State
 from genie.common import Path
 from .common_vars import mlonmcu_docker_vars
+from .isaac import isaac_core_name_var
 
 import yaml
 import pandas as pd
@@ -204,6 +205,12 @@ class MLonMCUStep(GenIEStep):
         num_parallel: Optional[str] = None,
         mlif_threads: Optional[str] = None,
         llvm_basic_block_sections: bool = False,
+        compare_rows: bool = False,
+        compare_rows_to_compare: Optional[List[str]] = None,
+        llvm_install_dir: Optional[Path] = None,
+        etissvp_script: Optional[Path] = None,
+        etiss_cpu_arch: Optional[str] = None,
+        config_gen: Optional[List[Dict]] = None,
     ):
         ret = ["flow", stage, "--dest", dest_dir, "--label", session_label]
         ret += [bench_name]
@@ -238,6 +245,39 @@ class MLonMCUStep(GenIEStep):
                 ret += ["-f", "auto_vectorize"]
         if llvm_basic_block_sections:
             ret += ["-f", "llvm_basic_block_sections"]
+        config2cols = (True,)
+        if config2cols:
+            config2cols_limit = [f"{target}.final_arch"]
+            config2cols_limit_str = ",".join(config2cols_limit)
+            ret += ["--post", "config2cols"]
+            ret += ["-c", f"config2cols.limit={config2cols_limit_str}"]
+        rename_cols = True
+        if rename_cols:
+            rename_cols_mapping = {f"config_{target}.final_arch": "Arch"}
+            rename_cols_mapping_str = (
+                "{" + ",".join([f"'{key}':'{val}'" for key, val in rename_cols_mapping.items()]) + "}"
+            )
+            ret += ["--post", "rename_cols"]
+            ret += ["-c", f"rename_cols.mapping={rename_cols_mapping_str}"]
+        if compare_rows:
+            ret += ["--post", "compare_rows"]
+            if compare_rows_to_compare is not None:
+                compare_rows_to_compare_str = ",".join(map(lambda x: f"{x}", compare_rows_to_compare))
+                ret += ["-c", f"compare_rows.to_compare={compare_rows_to_compare_str}"]
+        if llvm_install_dir is not None:
+            ret += ["-c", f"llvm.install_dir={llvm_install_dir}"]
+        if etissvp_script is not None:
+            assert target.startswith("etiss")
+            ret += ["-c", f"etissvp.script={etissvp_script}"]
+        if etiss_cpu_arch is not None:
+            assert target.startswith("etiss")
+            ret += ["-c", f"{target}.cpu_arch={etiss_cpu_arch}"]
+        if config_gen is not None:
+            assert isinstance(config_gen, list)
+            for d in config_gen:
+                assert isinstance(d, dict)
+                temp = [f"{key}={val}" for key, val in d.items()]
+                ret += ["--config-gen", *temp]
         if num_parallel is not None:
             if num_parallel == "auto":
                 ret += ["--parallel"]
@@ -248,8 +288,11 @@ class MLonMCUStep(GenIEStep):
                 raise NotImplementedError
             else:
                 ret += ["-c", f"mlif.num_threads={mlif_threads}"]
+        ret += ["-c", "run.export_optional=1"]
         if verbose:
             ret += ["-v"]
+        # print("ret", ret)
+        # input("!")
         return ret
 
     def get_mlonmcu_env(self, mlonmcu_home: Path, env: Optional[Dict] = None, mgclient_lib_dir: Optional[Path] = None):
@@ -379,6 +422,7 @@ class MLonMCUStep(GenIEStep):
         mgclient_lib_dir: Optional[Path],
         env: Dict,
         overrides: Optional[Dict] = None,
+        is_single: bool = True,
     ):
         session_label = self.get_session_label(bench_name, stage, label)
         dest = self.get_session_dest(stage, label)
@@ -396,35 +440,63 @@ class MLonMCUStep(GenIEStep):
         paths_updates = {}
         metrics_updates = {}
         metrics_updates[f"{label}.label"] = session_label
-        paths_updates[f"{label}.output_dir"] = dest / "runs" / "0"
-        report_csv = dest / "runs" / "0" / "report.csv"
-        assert report_csv.is_file(), f"Missing file: {report_csv}"
-        report_df = pd.read_csv(report_csv)
-        # print("report_df", report_df)
-        assert len(report_df) == 1
         keep_cols = [
             "Model",
             "Frontend",
             "Platform",
             "Target",
+            "Arch",
             "Total Cycles",
+            "Total Cycles (Rel.)",
             "Total Instructions",
+            "Total Instructions (rel.)",
             "Total CPI",
+            "Run Cycles",
+            "Run Cycles (Rel.)",
+            "Run Instructions",
+            "Run Instructions (rel.)",
+            "Run CPI",
             "Total ROM",
             "Total RAM",
             "ROM code",
+            "ROM code (rel.)",
         ]
-        new_metrics = {f"{label}.{key}": val for key, val in report_df.iloc[0].to_dict().items() if key in keep_cols}
+        if is_single:
+            paths_updates[f"{label}.output_dir"] = dest / "runs" / "0"
+            report_csv = dest / "report.csv"  # use session report for all postprocess cols
+            assert report_csv.is_file(), f"Missing file: {report_csv}"
+            report_df = pd.read_csv(report_csv)
+            assert len(report_df) == 1
+            new_metrics = {
+                f"{label}.{key}": val for key, val in report_df.iloc[0].to_dict().items() if key in keep_cols
+            }
+        else:
+            paths_updates[f"{label}.output_dir"] = dest
+            report_csv = dest / "report.csv"  # use session report for all postprocess cols
+            assert report_csv.is_file(), f"Missing file: {report_csv}"
+            report_df = pd.read_csv(report_csv)
+            assert len(report_df) > 1
+            new_metrics = {
+                f"{label}.[{i}].{key}": val
+                for i, series in report_df.iterrows()
+                for key, val in series.to_dict().items()
+                if key in keep_cols
+            }
+        # print("report_df", report_df)
+        # print("report_df", report_df)
+        # print("new_metrics", new_metrics)
+        # input("!")
         log_instrs = overrides.get("log_instrs", False) if overrides is not None else False
         if log_instrs:
+            assert is_single
             artifacts_yml = dest / "runs" / "0" / "artifacts.yml"
             assert artifacts_yml.is_file(), f"Missing file: {artifacts_yml}"
             with open(artifacts_yml, "r") as f:
                 artifacts = yaml.safe_load(f)
             artifacts = artifacts["artifacts"]
-            print("artifacts", artifacts)
+            # print("artifacts", artifacts)
             found = list(filter(lambda x: "log_instrs" in x["flags"], artifacts))
-            print("found", found)
+            # print("found", found)
             log_instrs_csv = pathlib.Path(found[0]["path"])
             assert log_instrs_csv.is_file(), f"Missing file: {log_instrs_csv}"
             paths_updates[f"{label}.instr_trace"] = log_instrs_csv
@@ -480,6 +552,116 @@ class Bench(MLonMCUStep):
             scripts_dir=scripts_dir,
             mgclient_lib_dir=mgclient_lib_dir,
             env=env,
+        )
+        metrics_updates.update(metrics_updates_)
+        paths_updates.update(paths_updates_)
+        return views_updates, metrics_updates, paths_updates
+
+
+@GenIEStep.factory.register()
+class ISEBench(MLonMCUStep):
+    """
+    TODO.
+    """
+
+    id = "MLonMCU.ISEBench"
+    name = "Run ISE Benchmark"
+    long_name = "Run MLonMCU ISE Benchmark"
+    inputs = []
+    outputs = []
+
+    in_stage = "initial"
+    per_instr = False
+    others = False
+
+    config_vars = MLonMCUStep.config_vars + [
+        isaac_core_name_var,
+    ]
+
+    def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate, PathsUpdate]:
+        kwargs, env = self.extract_env(kwargs)
+        views_updates: ViewsUpdate = {}
+        metrics_updates: MetricsUpdate = {}
+        paths_updates: PathsUpdate = {}
+        config = self.config
+        bench_name = config["BENCH"]
+        mlonmcu_home = pathlib.Path(state_in.paths["mlonmcu.home"])
+        demo_dir = pathlib.Path(state_in.paths["demo.dir"])
+        mgclient_lib_dir = pathlib.Path(state_in.paths["mgclient.lib_dir"])
+        scripts_dir = demo_dir / "scripts"
+        splitted = True
+        seal5_name = "seal5_splitted" if splitted else "seal5"
+
+        names_csv = pathlib.Path(state_in.paths[f"{self.in_stage}.workdir"]) / "names.csv"  # TODO: save names path
+        assert names_csv.is_file(), f"Missing file: {names_csv}"
+        names_df = pd.read_csv(names_csv)
+        assert len(names_df) > 0
+        instr_names = list(names_df["instr_lower"].values)
+
+        llvm_install_dir = pathlib.Path(state_in.paths[f"{self.in_stage}.{seal5_name}.install_dir"])
+        assert llvm_install_dir.is_dir(), f"Missing dir: {llvm_install_dir}"
+        etiss_install_dir = pathlib.Path(state_in.paths[f"{self.in_stage}.etiss.install_dir"])
+        assert etiss_install_dir.is_dir(), f"Missing dir: {etiss_install_dir}"
+        etissvp_script = etiss_install_dir / "bin" / "run_helper.sh"
+        assert etissvp_script.is_file(), f"Missing file: {etissvp_script}"
+        target = state_in.metrics["bench.Target"]
+        arch = state_in.metrics["bench.Arch"]
+        etiss_cpu_arch = config["ISAAC_CORE_NAME"]
+        build_arch = False  # TODO: enable after filtered?
+        if build_arch:
+            raise NotImplementedError("BUILD_ARCH")
+        else:
+            full_arch = f"{arch}_xisaac"
+        config_gen = [{f"{target}.arch": arch}, {f"{target}.arch": full_arch}]
+        suffix = ""
+        if self.others:
+            suffix += "_others"
+            raise NotImplementedError
+        if self.per_instr:
+            suffix += "_per_instr"
+            assert splitted, "per_instr needs splitted"
+            config_gen = [
+                {f"{target}.arch": arch},
+                *[{f"{target}.arch": f"{arch}_xisaac{instr_name}single"} for instr_name in instr_names],
+            ]
+            print("instr_names", instr_names)
+            print("config_gen", config_gen)
+        # TODO: enable num_parallel?
+        overrides = {
+            "compare_rows": True,
+            "compare_rows_to_compare": ["Run Instructions"],
+            "llvm_install_dir": llvm_install_dir,
+            "etissvp_script": etissvp_script,
+            "etiss_cpu_arch": etiss_cpu_arch,
+            "config_gen": config_gen,
+        }
+        metrics_updates_, paths_updates_ = self.run_mlonmcu_helper(
+            bench_name=bench_name,
+            stage="run",
+            label=f"{self.in_stage}.ise_bench{suffix}",
+            mlonmcu_home=mlonmcu_home,
+            scripts_dir=scripts_dir,
+            mgclient_lib_dir=mgclient_lib_dir,
+            overrides=overrides,
+            env=env,
+            is_single=False,
+        )
+        metrics_updates.update(metrics_updates_)
+        paths_updates.update(paths_updates_)
+        overrides2 = {
+            **overrides,
+            "compare_rows_to_compare": ["ROM code"],
+        }
+        metrics_updates_, paths_updates_ = self.run_mlonmcu_helper(
+            bench_name=bench_name,
+            stage="compile",
+            label=f"{self.in_stage}.ise_bench{suffix}_mem",
+            mlonmcu_home=mlonmcu_home,
+            scripts_dir=scripts_dir,
+            mgclient_lib_dir=mgclient_lib_dir,
+            overrides=overrides2,
+            env=env,
+            is_single=False,
         )
         metrics_updates.update(metrics_updates_)
         paths_updates.update(paths_updates_)

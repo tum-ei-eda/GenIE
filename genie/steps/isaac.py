@@ -29,6 +29,19 @@ isaac_vars = [
     ),
 ]
 
+isaac_set_name_var = Variable(
+    "ISAAC_SET_NAME",
+    str,
+    "TODO.",
+    default="XIsaac",
+)
+isaac_core_name_var = Variable(
+    "ISAAC_CORE_NAME",
+    str,
+    "TODO.",
+    default="XIsaacCore",
+)
+
 
 class ISAACStep(GenIEStep):
 
@@ -494,6 +507,10 @@ class QueryCandidates(ISAACStep):
         in_label = "trace"
         full_label = state_in.metrics[f"{in_label}.label"]
         extra_args = []
+        config = self.config
+        isaac_query_config_yaml = config["ISAAC_QUERY_CONFIG_YAML"]
+        if isaac_query_config_yaml:
+            extra_args += ["--query-config-yaml", isaac_query_config_yaml]
         extra_args += ["--workdir", out_dir]
         extra_args += ["--label", full_label]
         extra_args += ["--stage", cdfg_stage]
@@ -541,6 +558,7 @@ class GenerateInstrs(ISAACStep):
         scripts_dir = demo_dir / "scripts"
         name = "initial"
         label = "sess"
+        print("state_in", state_in)
         index_file = pathlib.Path(state_in.paths[f"{name}.index"])
         assert index_file.is_file(), f"Missing file: {index_file}"
         sess_dir = pathlib.Path(state_in.paths[f"{label}.dir"])
@@ -563,6 +581,14 @@ class GenerateInstrs(ISAACStep):
             env=env,
         )
         paths_updates[f"{name}.gen_dir"] = gen_dir
+        total_enc_metrics_csv = out_dir / "total_encoding_metrics.csv"
+        assert total_enc_metrics_csv.is_file(), f"Missing file: {total_enc_metrics_csv}"
+        total_enc_metrics_df = pd.read_csv(total_enc_metrics_csv)
+        assert len(total_enc_metrics_df) == 1
+        total_enc_metrics_dict = {
+            f"{name}.enc_{key}": val for key, val in total_enc_metrics_df.iloc[0].to_dict().items()
+        }
+        metrics_updates.update(total_enc_metrics_dict)
         return views_updates, metrics_updates, paths_updates
 
 
@@ -585,18 +611,8 @@ class GenerateETISSCore(ISAACStep):
             "TODO.",
             default="i,m,a,f,d,c,zicsr,zifencei",
         ),
-        Variable(
-            "ISAAC_CORE_NAME",
-            str,
-            "TODO.",
-            default="XIsaacCore",
-        ),
-        Variable(
-            "ISAAC_SET_NAME",
-            str,
-            "TODO.",
-            default="XIsaac",
-        ),
+        isaac_core_name_var,
+        isaac_set_name_var,
     ]
 
     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
@@ -658,7 +674,7 @@ class GenerateETISSCore(ISAACStep):
 
 
 @GenIEStep.factory.register()
-class RetargetLLVM(GenIEStep):
+class RetargetLLVM(ISAACStep):
     """
     TODO.
     """
@@ -668,12 +684,33 @@ class RetargetLLVM(GenIEStep):
     long_name = "Retarget LLVM"
     inputs = []
     outputs = []
+    splitted = False
 
-    config_vars = [
+    config_vars = ISAACStep.config_vars + [
+        isaac_set_name_var,
+        Variable(
+            "USE_SEAL5_DOCKER",
+            bool,
+            "TODO.",
+            default=False,
+        ),
+        Variable(
+            "SEAL5_VERBOSE",
+            bool,
+            "TODO.",
+            default=False,
+        ),
+        Variable(
+            "SEAL5_CLEANUP",
+            bool,
+            "TODO.",
+            default=True,
+        ),
         # Variable(
-        #     "VERILOG_FILES",
-        #     List[Path],
-        #     "The paths of the design's Verilog files.",
+        #     "ISAAC_SET_NAME",
+        #     str,
+        #     "TODO.",
+        #     default="XIsaac",
         # ),
     ]
 
@@ -681,15 +718,116 @@ class RetargetLLVM(GenIEStep):
         kwargs, env = self.extract_env(kwargs)
         views_updates: ViewsUpdate = {}
         metrics_updates: MetricsUpdate = {}
-        # config = self.config
-        errors_count = 0
-        metrics_updates.update({"design__lint_error__count": errors_count})
-        sleep(5.0)
-        return views_updates, metrics_updates, {}
+        paths_updates: PathsUpdate = {}
+        demo_dir = pathlib.Path(state_in.paths["demo.dir"])
+        scripts_dir = demo_dir / "scripts"
+        name = "initial"
+        label = "sess"
+        index_file = pathlib.Path(state_in.paths[f"{name}.index"])
+        assert index_file.is_file(), f"Missing file: {index_file}"
+        gen_dir = pathlib.Path(state_in.paths[f"{name}.gen_dir"])
+        assert gen_dir.is_dir(), f"Missing dir: {gen_dir}"
+        sess_dir = pathlib.Path(state_in.paths[f"{label}.dir"])
+        work_dir = sess_dir / "work"
+        out_dir = work_dir / name
+        out_dir.mkdir(parents=True, exist_ok=True)
+        gen_dir = out_dir / "gen"
+        gen_dir.mkdir(exist_ok=True)
+        assert sess_dir.is_dir(), f"Missing dir: {sess_dir}"
+        # xlen = state_in.metrics["target.xlen"]
+        # TODO: populate in CollectTargetMetrics
+        xlen = state_in.metrics.get("target.xlen", 32)
+        assert xlen in [32, 64]
+        # TODO: move to isaac yaml
+        config = self.config
+        docker_dir = demo_dir / "docker"
+        seal5_script_local = docker_dir / "seal5_script_local.sh"
+        env["SEAL5_SCRIPT_LOCAL"] = seal5_script_local
+        mgclient_install_dir = pathlib.Path(state_in.paths["mgclient.install_dir"])
+        env["MGCLIENT_INSTALL_DIR"] = mgclient_install_dir
+        enable_ccache = True  # TODO: expose
+        env["CCACHE"] = str(int(enable_ccache))
+        ccache_dir = pathlib.Path(state_in.paths["ccache.dir"])
+        env["CCACHE_DIR"] = ccache_dir
+        ccache_dir = pathlib.Path(state_in.paths["ccache.dir"])
+        cfg_dir = demo_dir / "cfg"
+        seal5_cfg_dir = cfg_dir / "seal5"
+        env["SEAL5_CFG_DIR"] = seal5_cfg_dir
+        seal5_src_dir = pathlib.Path(state_in.paths.get("seal5.src_dir", demo_dir / "seal5"))  # TODO: drop fallback
+        env["SEAL5_DIR"] = seal5_src_dir
+        llvm_src_dir = pathlib.Path(
+            state_in.paths.get("llvm.src_dir", demo_dir / "llvm-project")
+        )  # TODO: drop fallback
+        env["LLVM_DIR"] = llvm_src_dir
+        set_name = config["ISAAC_SET_NAME"]
+        use_docker = config["USE_SEAL5_DOCKER"]
+        extra_args = []
+        extra_args += ["--workdir", out_dir]
+        # extra_args += ["--label", ?]
+        # print("splitted", self.splitted)
+        # return views_updates, metrics_updates, paths_updates
+
+        if self.splitted:
+            seal5_name = "seal5_splitted"
+            extra_args += ["--splitted"]
+        else:
+            seal5_name = "seal5"
+        if use_docker:
+            mode = "docker"
+            extra_args += ["--docker"]
+        else:
+            mode = "local"
+            extra_args += ["--local"]
+        verbose = config["SEAL5_VERBOSE"]
+        cleanup = config["SEAL5_CLEANUP"]
+        if verbose:
+            extra_args += ["--verbose"]
+        if cleanup:
+            extra_args += ["--cleanup"]
+        cfg_files = [
+            seal5_cfg_dir / "patches.yml",
+            seal5_cfg_dir / "llvm.yml",
+            seal5_cfg_dir / "git.yml",
+            seal5_cfg_dir / "filter.yml",
+            seal5_cfg_dir / "tools.yml",
+            seal5_cfg_dir / "riscv.yml",
+        ]
+        extra_args += cfg_files
+        # TODO: write $WORK/encoding_score${SUFFIX}.csv?
+        self.run_isaac_toolkit(
+            ["isaac_toolkit.flow.demo.stage.retargeting.llvm", *extra_args],
+            scripts_dir=scripts_dir,
+            sess_dir=sess_dir,
+            has_force=True,
+            env=env,
+        )
+        seal5_out_dir = out_dir / mode / seal5_name
+        seal5_llvm_install_dir = seal5_out_dir / "llvm_install"
+        assert seal5_llvm_install_dir.is_dir(), f"Missing dir: {seal5_llvm_install_dir}"
+        seal5_score_csv = seal5_out_dir / "seal5_score.csv"
+        assert seal5_score_csv.is_file(), f"Missing file: {seal5_score_csv}"
+        seal5_score_df = pd.read_csv(seal5_score_csv)
+        assert len(seal5_score_df) > 0
+        avg_seal5_score = seal5_score_df["seal5_score"].mean()
+        total_count = len(seal5_score_df)
+        unsupported_count = len(seal5_score_df[seal5_score_df["seal5_score"] < 1.0])
+        has_unsupported = unsupported_count > 0
+        seal5_metrics_dict = {
+            f"{name}.{seal5_name}.avg_seal5_score": avg_seal5_score,
+            f"{name}.{seal5_name}.total_count": total_count,
+            f"{name}.{seal5_name}.unsupported_count": unsupported_count,
+            f"{name}.{seal5_name}.has_unsupported": has_unsupported,
+        }
+        metrics_updates.update(seal5_metrics_dict)
+        # print("seal5_score_df", seal5_score_df)
+
+        paths_updates[f"{name}.{seal5_name}.seal5_score_csv"] = seal5_score_csv
+        paths_updates[f"{name}.{seal5_name}.install_dir"] = seal5_llvm_install_dir
+        return views_updates, metrics_updates, paths_updates
 
 
 @GenIEStep.factory.register()
-class RetargetISS(GenIEStep):
+class RetargetISS(ISAACStep):
     """
     TODO.
     """
@@ -700,11 +838,32 @@ class RetargetISS(GenIEStep):
     inputs = []
     outputs = []
 
-    config_vars = [
+    config_vars = ISAACStep.config_vars + [
+        isaac_set_name_var,
+        Variable(
+            "USE_ETISS_DOCKER",
+            bool,
+            "TODO.",
+            default=False,
+        ),
+        Variable(
+            "ETISS_VERBOSE",
+            bool,
+            "TODO.",
+            default=False,
+        ),
+        isaac_core_name_var,
+        Variable(
+            "ETISS_CLEANUP",
+            bool,
+            "TODO.",
+            default=True,
+        ),
         # Variable(
-        #     "VERILOG_FILES",
-        #     List[Path],
-        #     "The paths of the design's Verilog files.",
+        #     "ISAAC_SET_NAME",
+        #     str,
+        #     "TODO.",
+        #     default="XIsaac",
         # ),
     ]
 
@@ -712,104 +871,194 @@ class RetargetISS(GenIEStep):
         kwargs, env = self.extract_env(kwargs)
         views_updates: ViewsUpdate = {}
         metrics_updates: MetricsUpdate = {}
-        # config = self.config
-        errors_count = 0
-        metrics_updates.update({"design__lint_error__count": errors_count})
-        sleep(5.0)
-        return views_updates, metrics_updates, {}
+        paths_updates: PathsUpdate = {}
+        demo_dir = pathlib.Path(state_in.paths["demo.dir"])
+        scripts_dir = demo_dir / "scripts"
+        name = "initial"
+        label = "sess"
+        index_file = pathlib.Path(state_in.paths[f"{name}.index"])
+        assert index_file.is_file(), f"Missing file: {index_file}"
+        gen_dir = pathlib.Path(state_in.paths[f"{name}.gen_dir"])
+        assert gen_dir.is_dir(), f"Missing dir: {gen_dir}"
+        sess_dir = pathlib.Path(state_in.paths[f"{label}.dir"])
+        work_dir = sess_dir / "work"
+        out_dir = work_dir / name
+        out_dir.mkdir(parents=True, exist_ok=True)
+        gen_dir = out_dir / "gen"
+        gen_dir.mkdir(exist_ok=True)
+        assert sess_dir.is_dir(), f"Missing dir: {sess_dir}"
+        # xlen = state_in.metrics["target.xlen"]
+        # TODO: populate in CollectTargetMetrics
+        xlen = state_in.metrics.get("target.xlen", 32)
+        assert xlen in [32, 64]
+        # TODO: move to isaac yaml
+        config = self.config
+        docker_dir = demo_dir / "docker"
+        etiss_script_local = docker_dir / "etiss_script_local.sh"
+        env["ETISS_SCRIPT_LOCAL"] = etiss_script_local
+        enable_ccache = True  # TODO: expose
+        env["CCACHE"] = str(int(enable_ccache))
+        ccache_dir = pathlib.Path(state_in.paths["ccache.dir"])
+        env["CCACHE_DIR"] = ccache_dir
+        # TODO: use already cloned etiss repo?
+        # core_name = config["ISAAC_CORE_NAME"]
+        use_docker = config["USE_ETISS_DOCKER"]
+        extra_args = []
+        extra_args += ["--workdir", out_dir]
+        # extra_args += ["--label", ?]
+        # print("splitted", self.splitted)
+        # return views_updates, metrics_updates, paths_updates
+
+        if use_docker:
+            mode = "docker"
+            extra_args += ["--docker"]
+        else:
+            mode = "local"
+            extra_args += ["--local"]
+        verbose = config["ETISS_VERBOSE"]
+        if verbose:
+            extra_args += ["--verbose"]
+        cleanup = config["ETISS_CLEANUP"]
+        if cleanup:
+            extra_args += ["--cleanup"]
+        # TODO: write $WORK/encoding_score${SUFFIX}.csv?
+        self.run_isaac_toolkit(
+            ["isaac_toolkit.flow.demo.stage.retargeting.iss", *extra_args],
+            scripts_dir=scripts_dir,
+            sess_dir=sess_dir,
+            has_force=True,
+            env=env,
+        )
+        etiss_name = "etiss"
+        etiss_out_dir = out_dir / mode / etiss_name
+        etiss_install_dir = etiss_out_dir / "etiss_install"
+        assert etiss_install_dir.is_dir(), f"Missing dir: {etiss_install_dir}"
+        paths_updates[f"{name}.{etiss_name}.install_dir"] = etiss_install_dir
+        return views_updates, metrics_updates, paths_updates
 
 
 @GenIEStep.factory.register()
-class CompareBench(GenIEStep):
+class CompareISEBench(ISAACStep):
     """
     TODO.
     """
 
-    id = "ISAAC.CompareBench"
-    name = "Compare Bench"
-    long_name = "Compare Bench"
+    id = "ISAAC.CompareISEBench"
+    name = "Compare ISE Bench"
+    long_name = "Compare ISE Bench"
     inputs = []
     outputs = []
 
-    config_vars = [
-        # Variable(
-        #     "VERILOG_FILES",
-        #     List[Path],
-        #     "The paths of the design's Verilog files.",
-        # ),
-    ]
+    config_vars = ISAACStep.config_vars + []
+    per_instr = False
+    others = False
+    in_stage = "initial"
 
     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
         kwargs, env = self.extract_env(kwargs)
         views_updates: ViewsUpdate = {}
         metrics_updates: MetricsUpdate = {}
-        # config = self.config
-        errors_count = 0
-        metrics_updates.update({"design__lint_error__count": errors_count})
-        sleep(5.0)
-        return views_updates, metrics_updates, {}
+        paths_updates: PathsUpdate = {}
+        demo_dir = pathlib.Path(state_in.paths["demo.dir"])
+        scripts_dir = demo_dir / "scripts"
+        label = "sess"
+        index_file = pathlib.Path(state_in.paths[f"{self.in_stage}.index"])
+        assert index_file.is_file(), f"Missing file: {index_file}"
+        sess_dir = pathlib.Path(state_in.paths[f"{label}.dir"])
+        assert sess_dir.is_dir(), f"Missing dir: {sess_dir}"
+        work_dir = sess_dir / "work"
+        out_dir = work_dir / self.in_stage
+        out_dir.mkdir(parents=True, exist_ok=True)
+        report_compare = pathlib.Path(state_in.paths[f"{self.in_stage}.ise_bench.output_dir"]) / "report.csv"
+        assert report_compare.is_file(), f"Missing file: {report_compare}"
+        report_compare_mem = pathlib.Path(state_in.paths[f"{self.in_stage}.ise_bench_mem.output_dir"]) / "report.csv"
+        assert report_compare_mem.is_file(), f"Missing file: {report_compare_mem}"
+        suffix = ""
+        if self.others:
+            suffix += "_others"
+            raise NotImplementedError
+        if self.per_instr:
+            suffix += "_per_instr"
+        compare_csv = out_dir / f"compare{suffix}.csv"
+        extra_args = [report_compare, "--mem-report", report_compare_mem, "--print-df", "--output", compare_csv]
+        self.run_isaac_toolkit(
+            ["isaac_toolkit.utils.analyze_compare", *extra_args],
+            scripts_dir=scripts_dir,
+            sess_dir=None,
+            has_force=False,
+            env=env,
+        )
+        assert compare_csv.is_file(), f"Missing file: {compare_csv}"
+        paths_updates[f"{self.in_stage}.compare{suffix}_csv"] = compare_csv
+        compare_df = pd.read_csv(compare_csv)
+        if not self.others and not self.per_instr:
+            assert len(compare_df) == 2
+            cols = ["Run Instructions (rel.)", "ROM code (rel.)"]
+            for col in cols:
+                metrics_updates[f"{self.in_stage}.compare{suffix}.{col}"] = compare_df[col].iloc[1]
+        return views_updates, metrics_updates, paths_updates
 
 
-@GenIEStep.factory.register()
-class CompareBenchOthers(GenIEStep):
-    """
-    TODO.
-    """
-
-    id = "ISAAC.CompareBenchOthers"
-    name = "Compare Bench Others"
-    long_name = "Compare Bench (Others)"
-    inputs = []
-    outputs = []
-
-    config_vars = [
-        # Variable(
-        #     "VERILOG_FILES",
-        #     List[Path],
-        #     "The paths of the design's Verilog files.",
-        # ),
-    ]
-
-    def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
-        kwargs, env = self.extract_env(kwargs)
-        views_updates: ViewsUpdate = {}
-        metrics_updates: MetricsUpdate = {}
-        # config = self.config
-        errors_count = 0
-        metrics_updates.update({"design__lint_error__count": errors_count})
-        sleep(5.0)
-        return views_updates, metrics_updates, {}
-
-
-@GenIEStep.factory.register()
-class CompareBenchPerInstr(GenIEStep):
-    """
-    TODO.
-    """
-
-    id = "ISAAC.CompareBenchPerInstr"
-    name = "Compare Bench Per Instr"
-    long_name = "Compare Bench (per Instr)"
-    inputs = []
-    outputs = []
-
-    config_vars = [
-        # Variable(
-        #     "VERILOG_FILES",
-        #     List[Path],
-        #     "The paths of the design's Verilog files.",
-        # ),
-    ]
-
-    def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
-        kwargs, env = self.extract_env(kwargs)
-        views_updates: ViewsUpdate = {}
-        metrics_updates: MetricsUpdate = {}
-        # config = self.config
-        errors_count = 0
-        metrics_updates.update({"design__lint_error__count": errors_count})
-        sleep(5.0)
-        return views_updates, metrics_updates, {}
+# @GenIEStep.factory.register()
+# class CompareISEBenchOthers(GenIEStep):
+#     """
+#     TODO.
+#     """
+#
+#     id = "ISAAC.CompareISEBenchOthers"
+#     name = "Compare ISE Bench Others"
+#     long_name = "Compare ISE Bench (Others)"
+#     inputs = []
+#     outputs = []
+#
+#     config_vars = [
+#         # Variable(
+#         #     "VERILOG_FILES",
+#         #     List[Path],
+#         #     "The paths of the design's Verilog files.",
+#         # ),
+#     ]
+#
+#     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
+#         kwargs, env = self.extract_env(kwargs)
+#         views_updates: ViewsUpdate = {}
+#         metrics_updates: MetricsUpdate = {}
+#         # config = self.config
+#         errors_count = 0
+#         metrics_updates.update({"design__lint_error__count": errors_count})
+#         sleep(5.0)
+#         return views_updates, metrics_updates, {}
+#
+#
+# @GenIEStep.factory.register()
+# class CompareISEBenchPerInstr(GenIEStep):
+#     """
+#     TODO.
+#     """
+#
+#     id = "ISAAC.CompareISEBenchPerInstr"
+#     name = "Compare ISE Bench Per Instr"
+#     long_name = "Compare ISE Bench (per Instr)"
+#     inputs = []
+#     outputs = []
+#
+#     config_vars = [
+#         # Variable(
+#         #     "VERILOG_FILES",
+#         #     List[Path],
+#         #     "The paths of the design's Verilog files.",
+#         # ),
+#     ]
+#
+#     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
+#         kwargs, env = self.extract_env(kwargs)
+#         views_updates: ViewsUpdate = {}
+#         metrics_updates: MetricsUpdate = {}
+#         # config = self.config
+#         errors_count = 0
+#         metrics_updates.update({"design__lint_error__count": errors_count})
+#         sleep(5.0)
+#         return views_updates, metrics_updates, {}
 
 
 @GenIEStep.factory.register()

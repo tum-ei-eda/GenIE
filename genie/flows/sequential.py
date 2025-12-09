@@ -298,6 +298,7 @@ class SequentialGenIEFlow(GenIEFlow):
     ) -> Tuple[State, List[GenIEStep]]:
         debug(f"Starting run ▶ '{self.run_dir}'")
         step_ids = {cls.id.lower(): cls.id for cls in reversed(self.Steps)}
+        print("step_ids", step_ids)
         skipped_ids: List[str] = []
 
         def resolve_step(matchable: Optional[str], multiple_ok: bool = False):
@@ -329,11 +330,14 @@ class SequentialGenIEFlow(GenIEFlow):
                 )
                 suggestion = ""
                 if matchTuple is not None:
+                    print("matchTuple", matchTuple)
                     match, _, _ = matchTuple
                     if dangerous_fuzzy_matching:
                         return [match] if multiple_ok else match
                     else:
-                        suggestion = f" Did you mean: '{match}'?"
+                        # suggestion = f" Did you mean: '{match}'?"
+                        print("match", match, dir(match), str(match))
+                        suggestion = " Did you mean: '" + match + "'?"
                 raise FlowException(
                     f"Failed to process '{matchable}': no step(s) with ID '{matchable}' found in flow.{suggestion}"
                 )
@@ -367,7 +371,13 @@ class SequentialGenIEFlow(GenIEFlow):
                 gating_cvars_expanded[id] = value
 
         current_state = initial_state
+        splitted = False
         for cls in self.Steps:
+            # print("cls", cls, dir(cls), cls.id)
+            # if cls.id == "ISAAC.RetargetLLVM":
+            #     print("cls.splitted", cls.splitted)
+            #     cls.splitted = splitted
+            #     splitted = not splitted
             step = cls(config=self.config, state_in=current_state)
             if frm_resolved is not None and frm_resolved == step.id:
                 executing = True

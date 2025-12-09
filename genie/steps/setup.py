@@ -18,7 +18,7 @@ def clone_demo_repo(url, dest, **kwargs):
         "M2-ISA-R",  # TODO: via pip?
         "etiss",  # TODO: prebuilt?
         "mlonmcu",  # TODO: via pip?
-        # "llvm-project",
+        "llvm-project",  # For local seal5 (avoid clone)
         "seal5",  # TODO: via pip?
         "mgclient",  # TODO: prebuilt?
         "etiss_arch_riscv",
