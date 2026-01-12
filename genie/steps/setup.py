@@ -44,7 +44,7 @@ class SetupDemo(GenIEStep):
             Optional[Path],
             "Existing DEMO_DIR clone.",
         ),
-        Variable("DEMO_REPO", str, "Clone URL of demo repo.", default="git@github.com:PhilippvK/isaac-demo.git"),
+        Variable("DEMO_REPO", str, "Clone URL of demo repo.", default="http://github.com/PhilippvK/isaac-demo.git"),
         Variable(
             "DEMO_REF",
             Optional[str],
