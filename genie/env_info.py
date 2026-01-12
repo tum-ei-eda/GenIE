@@ -254,15 +254,13 @@ class OSInfo(StringRepresentable):
                     config[key] = value
 
                 osinfo.distro = config.get("ID") or config.get("DISTRIB_ID")
-                osinfo.distro_version = config.get("VERSION_ID") or config.get(
-                    "DISTRIB_RELEASE"
-                )
+                osinfo.distro_version = config.get("VERSION_ID") or config.get("DISTRIB_RELEASE")
 
             else:
                 print("Failed to get distribution info.", file=sys.stderr)
 
         osinfo.container_info = ContainerInfo.get()
-        osinfo.nix_info = NixInfo.get()
+        # osinfo.nix_info = NixInfo.get()
         return osinfo
 
 
