@@ -484,6 +484,62 @@ class SetupPython(GenIEStep):
 
 
 @GenIEStep.factory.register()
+class SetupMemgraph(GenIEStep):
+    """
+    TODO.
+    """
+
+    id = "Setup.SetupMemgraph"
+    name = "SetupMemgraph"
+    long_name = "Setup Memgraph"
+    inputs = []
+    outputs = []
+
+    config_vars = [
+        Variable("USE_MEMGRAPH_DOCKER", bool, "Run Memgraph CDFG in docker container.", default=True),
+        Variable("SKIP_MEMGRAPH_SETUP", bool, "Do not install memgraph db automatically.", default=False),
+        # Variable("MEMGRAPH_PORT", int, "Port of Memgraph Server", default=7687),
+    ]
+
+    def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
+        kwargs, env = self.extract_env(kwargs)
+        views_updates: ViewsUpdate = {}
+        metrics_updates: MetricsUpdate = {}
+        paths_updates: PathsUpdate = {}
+        # print("self", self, dir(self))
+        # print("step_dir", self.step_dir)
+        config = self.config
+        # print("config", config)
+        # run_dir = pathlib.Path(self.step_dir).parent
+        # force_refresh = config["FORCE_REFRESH"]
+        use_memgraph_docker = config["USE_MEMGRAPH_DOCKER"]
+        skip_memgraph_setup = config["SKIP_MEMGRAPH_SETUP"]
+        if use_memgraph_docker or skip_memgraph_setup:
+            return views_updates, metrics_updates, paths_updates
+        demo_dir = pathlib.Path(state_in.paths["demo.dir"])
+        scripts_dir = demo_dir / "scripts"
+        setup_memgraph_script = scripts_dir / "setup_memgraph_local.sh"
+        # print("demo_dir", demo_dir)
+        # print("setup_memgraph_script", setup_memgraph_script)
+        assert setup_memgraph_script.is_file()
+        # command = self.get_command()
+        command = [setup_memgraph_script]
+        check = True
+
+        subprocess_result = self.run_subprocess(
+            command,
+            env=env,
+            check=check,
+            **kwargs,
+        )
+        # print("subprocess_result", subprocess_result)
+        # errors_count = 0466
+        # metrics_updates.update({"design__lint_error__count": errors_count})
+        # sleep(5.0)
+        return views_updates, metrics_updates, paths_updates
+
+
+@GenIEStep.factory.register()
 class SetupMgclient(GenIEStep):
     """
     TODO.
@@ -615,4 +671,4 @@ class SetupCCache(GenIEStep):
             **kwargs,
         )
         # print("subprocess_result", subprocess_result)
-        return views_updates, metrics_updates, {}
+        return views_updates, metrics_updates, paths_updates
