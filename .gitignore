@@ -16,6 +16,7 @@ dist/
 requirements.frz.txt
 genie_ipynb/
 requirements_tmp.txt
+.ipynb_checkpoints/
 
 # Nix
 result
