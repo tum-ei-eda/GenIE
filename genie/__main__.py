@@ -313,14 +313,16 @@ def cli_in_container(
     # pdk_root = ctx.params.get("pdk_root")
     argv = sys.argv[sys.argv.index("--dockerized") + 1 :]
 
-    final_argv = ["zsh"]
+    # final_argv = ["zsh"]
+    final_argv = ["bash"]
     if len(argv) != 0:
         final_argv = ["genie"] + argv
 
     docker_image = os.getenv(
         # "GENIE_IMAGE_OVERRIDE", f"ghcr.io/efabless/openlane2:{__version__}"
         "GENIE_IMAGE_OVERRIDE",
-        "philippvk/isaac-quickstart-min",
+        # "philippvk/isaac-quickstart-min",
+        "philippvk/genie",
     )
 
     try:

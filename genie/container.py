@@ -214,7 +214,7 @@ def run_in_container(
             container_id,
         ]
         + terminal_args
-        + permission_args(osinfo)
+        # + permission_args(osinfo)
         + mount_args
         + gui_args(osinfo)
         + [image]
