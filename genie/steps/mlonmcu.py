@@ -559,6 +559,28 @@ class Bench(MLonMCUStep):
 
 
 @GenIEStep.factory.register()
+class RTLBench(Bench):
+    """
+    TODO.
+    """
+
+    id = "MLonMCU.RTLBench"
+    name = "Run RTL Benchmark"
+    long_name = "Run MLonMCU RTL Benchmark"
+
+
+@GenIEStep.factory.register()
+class PerfSimBench(Bench):
+    """
+    TODO.
+    """
+
+    id = "MLonMCU.PerfSimBench"
+    name = "Run PerfSim Benchmark"
+    long_name = "Run MLonMCU PerfSim Benchmark"
+
+
+@GenIEStep.factory.register()
 class ISEBench(MLonMCUStep):
     """
     TODO.
@@ -669,6 +691,28 @@ class ISEBench(MLonMCUStep):
 
 
 @GenIEStep.factory.register()
+class ISERTLBench(ISEBench):
+    """
+    TODO.
+    """
+
+    id = "MLonMCU.ISERTLBench"
+    name = "Run ISE RTL Benchmark"
+    long_name = "Run MLonMCU ISE RTL Benchmark"
+
+
+@GenIEStep.factory.register()
+class ISEPerfSimBench(ISEBench):
+    """
+    TODO.
+    """
+
+    id = "MLonMCU.ISEPerfSimBench"
+    name = "Run ISE PerfSim Benchmark"
+    long_name = "Run MLonMCU ISE PerfSim Benchmark"
+
+
+@GenIEStep.factory.register()
 class Trace(MLonMCUStep):
     """
     TODO.
@@ -706,3 +750,25 @@ class Trace(MLonMCUStep):
         metrics_updates.update(metrics_updates_)
         paths_updates.update(paths_updates_)
         return views_updates, metrics_updates, paths_updates
+
+
+@GenIEStep.factory.register()
+class RTLTrace(Trace):
+    """
+    TODO.
+    """
+
+    id = "MLonMCU.RTLTrace"
+    name = "Run RTLTrace"
+    long_name = "Run MLonMCU RTLTrace"
+
+
+@GenIEStep.factory.register()
+class PerfSimTrace(Trace):
+    """
+    TODO.
+    """
+
+    id = "MLonMCU.PerfSimTrace"
+    name = "Run PerfSimTrace"
+    long_name = "Run MLonMCU PerfSimTrace"

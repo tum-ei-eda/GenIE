@@ -549,6 +549,8 @@ class GenerateInstrs(ISAACStep):
 
     config_vars = ISAACStep.config_vars
 
+    in_stage = "initial"
+
     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
         kwargs, env = self.extract_env(kwargs)
         views_updates: ViewsUpdate = {}
@@ -556,7 +558,7 @@ class GenerateInstrs(ISAACStep):
         paths_updates: PathsUpdate = {}
         demo_dir = pathlib.Path(state_in.paths["demo.dir"])
         scripts_dir = demo_dir / "scripts"
-        name = "initial"
+        name = self.in_stage
         label = "sess"
         print("state_in", state_in)
         index_file = pathlib.Path(state_in.paths[f"{name}.index"])
@@ -604,6 +606,8 @@ class GenerateETISSCore(ISAACStep):
     inputs = []
     outputs = []
 
+    in_stage = "initial"
+
     config_vars = ISAACStep.config_vars + [
         Variable(
             "ISAAC_BASE_EXTENSIONS",
@@ -622,7 +626,7 @@ class GenerateETISSCore(ISAACStep):
         paths_updates: PathsUpdate = {}
         demo_dir = pathlib.Path(state_in.paths["demo.dir"])
         scripts_dir = demo_dir / "scripts"
-        name = "initial"
+        name = self.in_stage
         label = "sess"
         index_file = pathlib.Path(state_in.paths[f"{name}.index"])
         assert index_file.is_file(), f"Missing file: {index_file}"
@@ -988,6 +992,14 @@ class CompareISEBench(ISAACStep):
             has_force=False,
             env=env,
         )
+        if self.per_instr:
+            self.run_isaac_toolkit(
+                ["isaac_toolkit.utils.annotate_per_instr_metrics", index_file, "--inplace", "--report", compare_csv],
+                scripts_dir=scripts_dir,
+                sess_dir=None,
+                has_force=False,
+                env=env,
+            )
         assert compare_csv.is_file(), f"Missing file: {compare_csv}"
         paths_updates[f"{self.in_stage}.compare{suffix}_csv"] = compare_csv
         compare_df = pd.read_csv(compare_csv)
@@ -1062,7 +1074,7 @@ class CompareISEBench(ISAACStep):
 
 
 @GenIEStep.factory.register()
-class FilterCandidates(GenIEStep):
+class FilterCandidates(ISAACStep):
     """
     TODO.
     """
@@ -1073,23 +1085,82 @@ class FilterCandidates(GenIEStep):
     inputs = []
     outputs = []
 
-    config_vars = [
-        # Variable(
-        #     "VERILOG_FILES",
-        #     List[Path],
-        #     "The paths of the design's Verilog files.",
-        # ),
+    config_vars = ISAACStep.config_vars + [
+        Variable(
+            "FILTER_MIN_SEAL5_SCORE",
+            Optional[float],
+            "TODO.",
+            default=0.5,
+        ),
+        Variable(
+            "FILTER_MIN_RUNTIME_REDUCTION_REL",
+            Optional[float],
+            "TODO.",
+            default=0.005,
+        ),
+        Variable(
+            "FILTER_MIN_UTIL_REL",
+            Optional[float],
+            "TODO.",
+            default=0.005,
+        ),
     ]
+    in_stage = "initial"
+    out_stage = "filtered"
 
     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
         kwargs, env = self.extract_env(kwargs)
         views_updates: ViewsUpdate = {}
         metrics_updates: MetricsUpdate = {}
-        # config = self.config
-        errors_count = 0
-        metrics_updates.update({"design__lint_error__count": errors_count})
-        sleep(5.0)
-        return views_updates, metrics_updates, {}
+        paths_updates: PathsUpdate = {}
+        demo_dir = pathlib.Path(state_in.paths["demo.dir"])
+        scripts_dir = demo_dir / "scripts"
+        label = "sess"
+        index_file = pathlib.Path(state_in.paths[f"{self.in_stage}.index"])
+        assert index_file.is_file(), f"Missing file: {index_file}"
+        sess_dir = pathlib.Path(state_in.paths[f"{label}.dir"])
+        assert sess_dir.is_dir(), f"Missing dir: {sess_dir}"
+        work_dir = sess_dir / "work"
+        out_dir = work_dir / self.out_stage
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_index = out_dir / "index.yml"
+        extra_args = [index_file, "-o", out_index]
+        config = self.config
+        if self.in_stage == "initial":
+            extra_args += [
+                "--min-seal5-score",
+                str(config["FILTER_MIN_SEAL5_SCORE"]),
+                "--min-runtime-reduction-rel",
+                str(config["FILTER_MIN_RUNTIME_REDUCTION_REL"]),
+            ]
+        self.run_isaac_toolkit(
+            ["isaac_toolkit.utils.filter_index", *extra_args],
+            scripts_dir=scripts_dir,
+            sess_dir=None,
+            has_force=False,
+            env=env,
+        )
+        names_csv = out_dir / "names.csv"
+        self.run_isaac_toolkit(
+            ["isaac_toolkit.utils.names_helper", out_index, "-o", names_csv],
+            scripts_dir=scripts_dir,
+            sess_dir=None,
+            has_force=False,
+            env=env,
+        )
+        assert out_index.is_file(), f"Missing file: {out_index}"
+        paths_updates[f"{self.out_stage}.index"] = out_index
+        paths_updates[f"{self.out_stage}.workdir"] = out_dir
+        assert names_csv.is_file(), f"Missing file: {names_csv}"
+        names_df = pd.read_csv(names_csv)
+        print("names_df", names_df)
+        num_candidates = len(names_df)
+        prev_candidates = state_in.metrics[f"{self.in_stage}.num_candidates"]
+        filtered_candidates = prev_candidates - num_candidates
+        assert num_candidates > 0, "No candidates found. Aborting..."
+        metrics_updates[f"{self.out_stage}.num_candidates"] = num_candidates
+        metrics_updates[f"{self.out_stage}.filteted_candidates"] = filtered_candidates
+        return views_updates, metrics_updates, paths_updates
 
 
 @GenIEStep.factory.register()

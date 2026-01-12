@@ -83,8 +83,8 @@ class DefaultGenIEFlow(SequentialGenIEFlow):
         ISAAC.CreateSpecGraph,
         annotate(ISAAC.GenerateInstrs, in_stage="filtered"),
         annotate(ISAAC.GenerateETISSCore, in_stage="filtered"),
-        annotate(ISAAC.RunHLS, in_stage="filtered"),
-        annotate(ISAAC.SelectInstrs, in_stage="filtered", out_stage="filtered_selected"),
+        # annotate(ISAAC.RunHLS, in_stage="filtered"),
+        # annotate(ISAAC.SelectInstrs, in_stage="filtered", out_stage="filtered_selected"),
         # ...
         Misc.FixPermissions,
         CI.CreateSummary,
@@ -92,3 +92,27 @@ class DefaultGenIEFlow(SequentialGenIEFlow):
         Misc.CleanupTempFiles,
         # MyStep,
     ]
+
+
+@GenIEFlow.factory.register()
+class RTLGenIEFlow(DefaultGenIEFlow):
+    Substitutions = {
+        "Setup.SetupETISS": None,
+        "MLonMCU.Bench": MLonMCU.RTLBench,
+        "MLonMCU.Trace": MLonMCU.RTLTrace,
+        "ISAAC.GenerateETISSCore": None,
+        # "ISAAC.RetargetISS": ISAAC.RetargetRTL,
+        "MLonMCU.ISEBench": MLonMCU.ISERTLBench,
+        "MLonMCU.ISEBench(per_instr=True)": annotate(MLonMCU.ISERTLBench, per_instr=True),
+    }
+
+
+@GenIEFlow.factory.register()
+class PerfSimGenIEFlow(DefaultGenIEFlow):
+    Substitutions = {
+        "MLonMCU.Bench": MLonMCU.PerfSimBench,
+        "MLonMCU.Trace": MLonMCU.PerfSimTrace,
+        # "ISAAC.RetargetISS": ISAAC.RetargetPerfSim,
+        "MLonMCU.ISEBench": MLonMCU.ISEPerfSimBench,
+        "MLonMCU.ISEBench(per_instr=True)": annotate(MLonMCU.ISEPerfSimBench, per_instr=True),
+    }
