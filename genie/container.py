@@ -213,6 +213,8 @@ def run_in_container(
             "run",
             "--rm",
             "--name",
+            "--network",
+            "host",
             container_id,
         ]
         + terminal_args
