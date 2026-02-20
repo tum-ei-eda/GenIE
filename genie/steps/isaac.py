@@ -426,7 +426,10 @@ class PushCDFG(ISAACStep):
     inputs = []
     outputs = []
 
-    config_vars = ISAACStep.config_vars
+    config_vars = ISAACStep.config_vars + [
+        Variable("MEMGRAPH_HOST", str, "Hostname or URL of Memgraph Server", default="localhost"),
+        Variable("MEMGRAPH_PORT", int, "Port of Memgraph Server", default=7687),
+    ]
 
     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
         kwargs, env = self.extract_env(kwargs)
@@ -442,6 +445,13 @@ class PushCDFG(ISAACStep):
         cdfg_stage = 32  # TODO: move to isaac config
         in_label = "trace"
         full_label = state_in.metrics[f"{in_label}.label"]
+        config = self.config
+        memgraph_host = config["MEMGRAPH_HOST"]
+        memgraph_port = config["MEMGRAPH_PORT"]
+        if memgraph_host:
+            env["MEMGRAPH_HOST"] = memgraph_host
+        if memgraph_port:
+            env["MEMGRAPH_PORT"] = str(memgraph_port)
         self.run_isaac_toolkit(
             ["isaac_toolkit.generate.cdfg.memgraph", "--label", full_label, "--stage", cdfg_stage],
             scripts_dir=scripts_dir,
@@ -487,6 +497,8 @@ class QueryCandidates(ISAACStep):
         # ISAAC_SORT_BY="IsoWeight"
         # ISAAC_TOPK
         # ISAAC_PARTITION_WITH_MAXMISO=auto
+        Variable("MEMGRAPH_HOST", str, "Hostname or URL of Memgraph Server", default="localhost"),
+        Variable("MEMGRAPH_PORT", int, "Port of Memgraph Server", default=7687),
     ]
 
     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
@@ -514,6 +526,12 @@ class QueryCandidates(ISAACStep):
         extra_args += ["--workdir", out_dir]
         extra_args += ["--label", full_label]
         extra_args += ["--stage", cdfg_stage]
+        memgraph_host = config["MEMGRAPH_HOST"]
+        memgraph_port = config["MEMGRAPH_PORT"]
+        if memgraph_host:
+            env["MEMGRAPH_HOST"] = memgraph_host
+        if memgraph_port:
+            env["MEMGRAPH_PORT"] = str(memgraph_port)
         self.run_isaac_toolkit(
             ["isaac_toolkit.generate.ise.query_candidates_from_db", *extra_args],
             scripts_dir=scripts_dir,
