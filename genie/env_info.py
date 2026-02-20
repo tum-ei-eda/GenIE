@@ -33,6 +33,7 @@ except ImportError:
     pass
 
 CONTAINER_ENGINE = os.getenv("GENIE_CONTAINER_ENGINE", "docker")
+DOCKER_PREFIX = os.getenv("DOCKER_PREFIX", "")
 
 
 class StringRepresentable(object):
@@ -63,7 +64,7 @@ class ContainerInfo(StringRepresentable):
 
             try:
                 info_str = subprocess.check_output(
-                    [CONTAINER_ENGINE, "info", "--format", "{{json .}}"]
+                    [*([DOCKER_PREFIX] if DOCKER_PREFIX else []), CONTAINER_ENGINE, "info", "--format", "{{json .}}"]
                 ).decode("utf8")
             except Exception as e:
                 raise Exception("Failed to get Docker info: %s" % str(e)) from None

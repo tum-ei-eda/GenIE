@@ -30,6 +30,7 @@ from .logging import err, info, warn
 from .env_info import OSInfo
 
 CONTAINER_ENGINE = os.getenv("GENIE_CONTAINER_ENGINE", "docker")
+DOCKER_PREFIX = os.getenv("DOCKER_PREFIX", "")
 
 
 def permission_args(osinfo: OSInfo) -> List[str]:
@@ -69,7 +70,7 @@ def gui_args(osinfo: OSInfo) -> List[str]:
 
 
 def image_exists(image: str) -> bool:
-    images = subprocess.check_output([CONTAINER_ENGINE, "images", image]).decode("utf8").rstrip().split("\n")[1:]
+    images = subprocess.check_output([*([DOCKER_PREFIX] if DOCKER_PREFIX else []), CONTAINER_ENGINE, "images", image]).decode("utf8").rstrip().split("\n")[1:]
     return len(images) >= 1
 
 
@@ -112,7 +113,7 @@ def ensure_image(image: str) -> bool:
         return True
 
     try:
-        subprocess.check_call([CONTAINER_ENGINE, "pull", image])
+        subprocess.check_call([*([DOCKER_PREFIX] if DOCKER_PREFIX else []), CONTAINER_ENGINE, "pull", image])
     except subprocess.CalledProcessError:
         err(f"Failed to pull image {image} from the container registries.")
         return False
@@ -207,6 +208,7 @@ def run_in_container(
 
     cmd = (
         [
+            *([DOCKER_PREFIX] if DOCKER_PREFIX else []),
             CONTAINER_ENGINE,
             "run",
             "--rm",
