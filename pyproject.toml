@@ -23,10 +23,11 @@ psutil = ">=5.9.0"
 httpx = ">=0.22.0,<0.29"
 yamlcore = "^0.0.2"
 semver = "^3.0.2"
-openlane = "~=2.3.10"
+# openlane = "~=2.3.10"
 GitPython = "~=3.1.45"
 docker = "~=7.1.0"
 pandas = "~=2.3.3"
+openlane = { git = "https://github.com/PhilippvK/openlane2", branch = "genie_wip" }
 mlonmcu = { git = "https://github.com/tum-ei-eda/mlonmcu", branch = "isaac-demo-rebased", optional = true }
 m2isar = { git = "https://github.com/PhilippvK/M2-ISA-R", rev = "051d3354811e94f6ed61f4fdc54188370884e828", optional = true }
 isaac-toolkit = { git = "https://github.com/tum-ei-eda/isaac-toolkit", branch = "isaac-demo-newer-nov", optional = true }
