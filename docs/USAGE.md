@@ -1,19 +1,46 @@
-## GenIE Usage
+# GenIE usage
+
+Install and check the development environment using [SETUP.md](SETUP.md).
+Create an output directory and select a target preset, mode, and flow:
 
 ```sh
-CONFIG=cva5_reuseio
-MODE=local
-FLOW=DefaultGenIEFlow
-BENCH=embench_iot/crc32
-OUT_DIR=$(pwd)/out/$MODE
-
-genie cfg/$CONFIG.yml cfg/$MODE.yml --flow $FLOW -c BENCH=$BENCH -c DESIGN_DIR=$OUT_DIR
-# or: genie --dockerized cfg/$CONFIG.yml cfg/$MODE.yml --flow $FLOW -c BENCH=$BENCH -c DESIGN_DIR=$OUT_DIR
+mkdir -p out/local
+genie cfg/cva5_reuseio.yml cfg/local.yml \
+  --flow ISSEvaluationFlow -c BENCH=embench_iot/crc32 \
+  --design-dir "$(pwd)/out/local"
 ```
 
-For details, check:
-- [`CONFIG.md`](./CONFIG.md): Configuration options
-- [`MODES.md`](./MODES.md): Available modes
-- [`FLOWS.md`](./FLOWS.md): Available GenIE Flows
-- [`WORKLOADS.md`](./WORKLOADS.md): Available workloads
-- [`OUTPUTS.md`](./OUTPUTS.md): Generated output artifacts 
+The local setup requires the external source/tool installations and Memgraph
+server. Select a target-specific query YAML with `ISAAC_QUERY_CONFIG_YAML`;
+see [MIGRATION.md](MIGRATION.md) for CVA5 constraints and database routing.
+The complete hardware flow additionally requires an HLS installation, cell
+library, and synthesis technology/tool configuration.
+
+Run only configuration verification without external tools:
+
+```sh
+genie cfg/cva5_reuseio.yml cfg/local.yml \
+  --flow ISSEvaluationFlow -c BENCH=embench_iot/crc32 \
+  --design-dir "$(pwd)/out/local" --only Misc.VerifyConfig
+```
+
+Resume a range of steps with saved GenIE state:
+
+```sh
+genie cfg/cva5_reuseio.yml cfg/local.yml \
+  --flow ISSEvaluationFlow -c BENCH=embench_iot/crc32 \
+  --design-dir "$(pwd)/out/local" --with-initial-state /path/to/state_out.json \
+  --from ISAAC.CreateSession --to ISAAC.PickChoices
+```
+
+List or run an individual Python counterpart of a prototype phase:
+
+```sh
+python -m genie.prototype --list
+python -m genie.prototype flow_filter.sh --stage filtered \
+  cfg/cva5_reuseio.yml --design-dir "$(pwd)/out/local" \
+  --with-initial-state /path/to/state_out.json
+```
+
+See [FLOWS.md](FLOWS.md), [CONFIG.md](CONFIG.md), [MODES.md](MODES.md), and
+[PROGRESS.md](../PROGRESS.md) for current capabilities and validation limits.

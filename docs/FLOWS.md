@@ -64,3 +64,19 @@ class CustomGenIEFlow(DefaultGenIEFlow):
 #### Via Config files
 
 Simple substitutions can also be defined as follows: TODO
+### Extended evaluation flows
+
+`ISSEvaluationFlow` adds encoding/compiler score annotation, combined and
+per-instruction benchmarks, custom tracing/reanalysis, diffs, utilization scores,
+and candidate ordering before filtering. A representative CRC32 run has validated
+these components; see [PROGRESS.md](../PROGRESS.md) for exact checkpoints.
+
+`HardwareSelectionFlow` continues through filtered evaluation, HLS cost
+annotation, specialization-aware selection, final regeneration/evaluation, and
+ASIP/FPGA synthesis. Its configuration and Python orchestration are tested;
+full physical-tool execution remains unverified. Supply HLS and technology-library
+settings before running it. See [SETUP.md](SETUP.md) and [MIGRATION.md](MIGRATION.md).
+
+For individual counterparts of the prototype `flow_*.sh` scripts, use
+`python -m genie.prototype --list`. The phase interface accepts GenIE configuration
+and saved state, plus candidate-stage options described in the migration guide.

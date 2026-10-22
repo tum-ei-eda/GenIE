@@ -1,5 +1,7 @@
 # GenIE Documentation
 
+See [development setup](SETUP.md) and [migration progress](../PROGRESS.md).
+
 ## Index
 
 - [`CLI.md`](./CLI.md): Command Line Interface

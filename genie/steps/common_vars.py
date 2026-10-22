@@ -54,3 +54,9 @@ force_refresh_var = Variable(
     "Update demo dir/repo even if already populated.",
     default=False,
 )
+
+
+synthesis_enable_vars = [
+    Variable("ASIP_SYN_ENABLE", bool, "Enable ASIP synthesis.", default=True),
+    Variable("FPGA_SYN_ENABLE", bool, "Enable FPGA synthesis.", default=True),
+]

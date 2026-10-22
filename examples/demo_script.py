@@ -1,56 +1,17 @@
-from genie.flows import GenIEFlow, SequentialGenIEFlow
-from genie.steps import Setup, Misc, MLonMCU, ISAAC, CI, Docker
-from genie.__main__ import cli
+"""Register an example custom flow and run the regular GenIE CLI.
+
+Usage: python examples/demo_script.py --help
+"""
+from genie.flows import GenIEFlow, ISSEvaluationFlow
 
 
 @GenIEFlow.factory.register()
-class DefaultGenIEFlow(SequentialGenIEFlow):
-    Steps = [
-        # MyStep,
-        Misc.VerifyConfig,
-        Misc.CheckDeps,
-        Docker.StartMemgraphServer,
-        Setup.SetupDemo,
-        Setup.SetupPython,
-        Setup.SetupCCache,
-        Setup.SetupMgclient,
-        Setup.SetupLLVM,
-        Setup.SetupETISS,
-        Setup.SetupMLonMCU,
-        # Setup.SetupM2ISAR,
-        MLonMCU.Bench,
-        MLonMCU.Trace,
-        ISAAC.CreateSession,
-        ISAAC.LoadArtifacts,
-        ISAAC.Analyze,
-        ISAAC.Visualize,
-        ISAAC.PickChoices,
-        ISAAC.PushCDFG,
-        ISAAC.QueryCandidates,
-        ISAAC.GenerateInstrs,
-        # Assign Encoding Metrics/Score
-        ISAAC.GenerateETISSCore,
-        ISAAC.RetargetLLVM,
-        # Assign Seal5 Metrics/Score
-        ISAAC.RetargetISS,
-        ISAAC.CompareBench,
-        ISAAC.CompareBenchOthers,
-        ISAAC.CompareBenchPerInstr,
-        # Assign Compare
-        ISAAC.FilterCandidates,
-        ISAAC.CreateSpecGraph,
-        # ...
-        Misc.FixPermissions,
-        CI.CreateSummary,
-        CI.PrepareUploads,
-        Misc.CleanupTempFiles,
-        # MyStep,
-    ]
-    # ?
+class ExampleGenIEFlow(ISSEvaluationFlow):
+    """Customize Steps or Substitutions here for a new experiment."""
+    pass
 
-
-# flow = DefaultGenIEFlow({}, design_dir=".")
-# flow.start()
 
 if __name__ == "__main__":
+    # Import after registration: the CLI builds flow choices at import time.
+    from genie.__main__ import cli
     cli()

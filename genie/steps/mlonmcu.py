@@ -128,6 +128,8 @@ class MLonMCUStep(GenIEStep):
             "TODO.",
             default=False,
         ),
+        Variable("PERF_TARGET", str, "Performance simulator target.", default="etiss_perf"),
+        Variable("PERF_UARCH", str, "Performance simulation core model.", default="cv32e40pxisaac"),
         *mlonmcu_docker_vars,
         Variable(
             "MLONMCU_NUM_PARALLEL",
@@ -153,10 +155,12 @@ class MLonMCUStep(GenIEStep):
     def run_dir(self):
         return pathlib.Path(self.step_dir).parent
 
+    perf_sim = False
+
     def get_mlonmcu_config(self):
         config = self.config
         ret = {}
-        ret["target"] = config["TARGET"]
+        ret["target"] = config["PERF_TARGET"] if self.perf_sim else config["TARGET"]
         ret["unroll"] = config["UNROLL"]
         ret["optimize"] = config["OPTIMIZE"]
         ret["arch"] = config["ARCH"]
@@ -210,11 +214,14 @@ class MLonMCUStep(GenIEStep):
         llvm_install_dir: Optional[Path] = None,
         etissvp_script: Optional[Path] = None,
         etiss_cpu_arch: Optional[str] = None,
+        etiss_src_dir: Optional[Path] = None,
         config_gen: Optional[List[Dict]] = None,
     ):
         ret = ["flow", stage, "--dest", dest_dir, "--label", session_label]
-        ret += [bench_name]
+        ret += list(bench_name) if isinstance(bench_name, (list, tuple)) else [bench_name]
         ret += ["--target", target]
+        if self.perf_sim:
+            ret += ["-f", "perf_sim", "-c", f"perf_sim.core={self.config['PERF_UARCH']}"]
         ret += ["--backend", backend]
         assert platform == "mlif"
         if toolchain is not None:
@@ -248,12 +255,16 @@ class MLonMCUStep(GenIEStep):
         config2cols = (True,)
         if config2cols:
             config2cols_limit = [f"{target}.final_arch"]
+            if self.perf_sim:
+                config2cols_limit.append("perf_sim.core")
             config2cols_limit_str = ",".join(config2cols_limit)
             ret += ["--post", "config2cols"]
             ret += ["-c", f"config2cols.limit={config2cols_limit_str}"]
         rename_cols = True
         if rename_cols:
             rename_cols_mapping = {f"config_{target}.final_arch": "Arch"}
+            if self.perf_sim:
+                rename_cols_mapping["config_perf_sim.core"] = "uArch"
             rename_cols_mapping_str = (
                 "{" + ",".join([f"'{key}':'{val}'" for key, val in rename_cols_mapping.items()]) + "}"
             )
@@ -269,6 +280,16 @@ class MLonMCUStep(GenIEStep):
         if etissvp_script is not None:
             assert target.startswith("etiss")
             ret += ["-c", f"etissvp.script={etissvp_script}"]
+        if self.perf_sim and etissvp_script is not None:
+            install = pathlib.Path(etissvp_script).parent.parent
+            processor = install / "bin/genie_etiss_processor.py"
+            if not processor.is_file():
+                processor = install / "bin/bare_etiss_processor"
+            ret += ["-c", f"{target}.script={etissvp_script}",
+                    "-c", f"{target}.install_dir={install}",
+                    "-c", f"{target}.exe={processor}"]
+        if etiss_src_dir is not None:
+            ret += ["-c", f"{target}.src_dir={etiss_src_dir}"]
         if etiss_cpu_arch is not None:
             assert target.startswith("etiss")
             ret += ["-c", f"{target}.cpu_arch={etiss_cpu_arch}"]
@@ -389,7 +410,6 @@ class MLonMCUStep(GenIEStep):
         args += self.get_mlonmcu_args(dest_dir, stage, bench_name, session_label=session_label, **cfg)
         check = True
         print("args", args)
-        print("env", env)
         _ = self.run_subprocess(
             args,
             env=env,
@@ -403,6 +423,7 @@ class MLonMCUStep(GenIEStep):
         run_dir = self.run_dir
         run_name = run_dir.name.lower().replace("_", "-")
         stage = stage.lower().replace("_", "-")
+        bench = ("-".join(bench) if isinstance(bench, (list, tuple)) else bench)
         bench = bench.lower().replace("/", "-").replace("_", "-")
         label = "-".join(["genie", run_name, bench, stage, label])
         return label
@@ -571,6 +592,7 @@ class RTLBench(Bench):
 
 @GenIEStep.factory.register()
 class PerfSimBench(Bench):
+    perf_sim = True
     """
     TODO.
     """
@@ -595,9 +617,12 @@ class ISEBench(MLonMCUStep):
     in_stage = "initial"
     per_instr = False
     others = False
+    build_arch = False
+    splitted = False
 
     config_vars = MLonMCUStep.config_vars + [
         isaac_core_name_var,
+        Variable("COMPARE_BENCHMARKS", List[str], "Benchmarks for cross-workload evaluation.", default=[]),
     ]
 
     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate, PathsUpdate]:
@@ -611,34 +636,38 @@ class ISEBench(MLonMCUStep):
         demo_dir = pathlib.Path(state_in.paths["demo.dir"])
         mgclient_lib_dir = pathlib.Path(state_in.paths["mgclient.lib_dir"])
         scripts_dir = demo_dir / "scripts"
-        splitted = True
+        splitted = self.splitted or self.per_instr or self.build_arch
         seal5_name = "seal5_splitted" if splitted else "seal5"
 
-        names_csv = pathlib.Path(state_in.paths[f"{self.in_stage}.workdir"]) / "names.csv"  # TODO: save names path
+        names_csv = pathlib.Path(state_in.paths.get(f"{self.in_stage}.names_csv") or
+                                 pathlib.Path(state_in.paths[f"{self.in_stage}.workdir"]) / "names.csv")
         assert names_csv.is_file(), f"Missing file: {names_csv}"
         names_df = pd.read_csv(names_csv)
         assert len(names_df) > 0
         instr_names = list(names_df["instr_lower"].values)
 
-        llvm_install_dir = pathlib.Path(state_in.paths[f"{self.in_stage}.{seal5_name}.install_dir"])
+        compiler_stage = "initial" if self.build_arch and self.in_stage in ("filtered", "filtered_selected") else self.in_stage
+        llvm_install_dir = pathlib.Path(state_in.paths[f"{compiler_stage}.{seal5_name}.install_dir"])
         assert llvm_install_dir.is_dir(), f"Missing dir: {llvm_install_dir}"
-        etiss_install_dir = pathlib.Path(state_in.paths[f"{self.in_stage}.etiss.install_dir"])
+        simulator = "etiss_perf" if self.perf_sim else "etiss"
+        etiss_install_dir = pathlib.Path(state_in.paths[f"{self.in_stage}.{simulator}.install_dir"])
         assert etiss_install_dir.is_dir(), f"Missing dir: {etiss_install_dir}"
         etissvp_script = etiss_install_dir / "bin" / "run_helper.sh"
         assert etissvp_script.is_file(), f"Missing file: {etissvp_script}"
-        target = state_in.metrics["bench.Target"]
+        target = config["PERF_TARGET"] if self.perf_sim else state_in.metrics["bench.Target"]
         arch = state_in.metrics["bench.Arch"]
         etiss_cpu_arch = config["ISAAC_CORE_NAME"]
-        build_arch = False  # TODO: enable after filtered?
-        if build_arch:
-            raise NotImplementedError("BUILD_ARCH")
+        if self.build_arch:
+            full_arch = arch + "".join(f"_xisaac{name}single" for name in instr_names)
         else:
             full_arch = f"{arch}_xisaac"
         config_gen = [{f"{target}.arch": arch}, {f"{target}.arch": full_arch}]
         suffix = ""
         if self.others:
             suffix += "_others"
-            raise NotImplementedError
+            bench_name = config["COMPARE_BENCHMARKS"]
+            if not bench_name:
+                raise ValueError("COMPARE_BENCHMARKS is required for cross-workload evaluation")
         if self.per_instr:
             suffix += "_per_instr"
             assert splitted, "per_instr needs splitted"
@@ -648,15 +677,24 @@ class ISEBench(MLonMCUStep):
             ]
             print("instr_names", instr_names)
             print("config_gen", config_gen)
+        if self.perf_sim and not self.per_instr:
+            uarchs_csv = pathlib.Path(state_in.paths[f"{self.in_stage}.etiss_perf.uarchs_csv"])
+            uarchs = pd.read_csv(uarchs_csv)["uarch"].dropna().tolist()
+            if not uarchs:
+                raise ValueError(f"No microarchitectures in {uarchs_csv}")
+            config_gen = [{f"{target}.arch": arch, "perf_sim.core": uarchs[0]},
+                          *[{f"{target}.arch": full_arch, "perf_sim.core": uarch} for uarch in uarchs]]
         # TODO: enable num_parallel?
         overrides = {
             "compare_rows": True,
-            "compare_rows_to_compare": ["Run Instructions"],
+            "compare_rows_to_compare": ["Run Instructions", "Run Cycles"] if self.perf_sim else ["Run Instructions"],
             "llvm_install_dir": llvm_install_dir,
             "etissvp_script": etissvp_script,
             "etiss_cpu_arch": etiss_cpu_arch,
             "config_gen": config_gen,
         }
+        if self.perf_sim:
+            overrides["etiss_src_dir"] = pathlib.Path(state_in.paths[f"{self.in_stage}.etiss_perf.src_dir"])
         metrics_updates_, paths_updates_ = self.run_mlonmcu_helper(
             bench_name=bench_name,
             stage="run",
@@ -703,6 +741,7 @@ class ISERTLBench(ISEBench):
 
 @GenIEStep.factory.register()
 class ISEPerfSimBench(ISEBench):
+    perf_sim = True
     """
     TODO.
     """
@@ -765,6 +804,7 @@ class RTLTrace(Trace):
 
 @GenIEStep.factory.register()
 class PerfSimTrace(Trace):
+    perf_sim = True
     """
     TODO.
     """
@@ -772,3 +812,55 @@ class PerfSimTrace(Trace):
     id = "MLonMCU.PerfSimTrace"
     name = "Run PerfSimTrace"
     long_name = "Run MLonMCU PerfSimTrace"
+
+
+@GenIEStep.factory.register()
+class ISETrace(MLonMCUStep):
+    """Trace an application using a retargeted compiler and simulator."""
+    id = "MLonMCU.ISETrace"
+    name = long_name = "Trace ISE Application"
+    inputs = []
+    outputs = []
+    in_stage = "initial"
+    build_arch = False
+    config_vars = MLonMCUStep.config_vars + [isaac_core_name_var]
+
+    def run(self, state_in, **kwargs):
+        kwargs, env = self.extract_env(kwargs)
+        stage = self.in_stage
+        work = pathlib.Path(state_in.paths[f"{stage}.workdir"])
+        compiler_stage = "initial" if self.build_arch and stage in ("filtered", "filtered_selected") else stage
+        compiler_kind = "seal5_splitted" if self.build_arch else "seal5"
+        llvm = pathlib.Path(state_in.paths[f"{compiler_stage}.{compiler_kind}.install_dir"])
+        simulator = "etiss_perf" if self.perf_sim else "etiss"
+        etiss = pathlib.Path(state_in.paths[f"{stage}.{simulator}.install_dir"])
+        helper = etiss / "bin" / "run_helper.sh"
+        for artifact in (llvm, helper):
+            if not artifact.exists():
+                raise FileNotFoundError(artifact)
+        arch = self.config["ARCH"]
+        if self.build_arch:
+            names = pd.read_csv(state_in.paths.get(f"{stage}.names_csv", work / "names.csv"))
+            arch += "".join(f"_xisaac{name}single" for name in names["instr_lower"])
+        else:
+            arch += "_xisaac"
+        metrics, paths = self.run_mlonmcu_helper(
+            bench_name=self.config["BENCH"], stage="run", label=f"{stage}.ise_trace",
+            mlonmcu_home=pathlib.Path(state_in.paths["mlonmcu.home"]),
+            scripts_dir=pathlib.Path(state_in.paths["demo.dir"]) / "scripts",
+            mgclient_lib_dir=pathlib.Path(state_in.paths["mgclient.lib_dir"]),
+            overrides={"arch": arch, "llvm_install_dir": llvm,
+                       "etissvp_script": helper, "etiss_cpu_arch": self.config["ISAAC_CORE_NAME"],
+                       **({"etiss_src_dir": pathlib.Path(state_in.paths[f"{stage}.etiss_perf.src_dir"])}
+                          if self.perf_sim else {}),
+                       "log_instrs": True, "llvm_basic_block_sections": True},
+            env=env,
+        )
+        return {}, metrics, paths
+
+
+@GenIEStep.factory.register()
+class ISEPerfSimTrace(ISETrace):
+    id = "MLonMCU.ISEPerfSimTrace"
+    name = long_name = "Trace ISE Performance Simulation"
+    perf_sim = True

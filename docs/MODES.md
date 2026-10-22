@@ -39,16 +39,11 @@ Run with: `genie cfg/docker.yml ...`
 
 ### Service (`service`)
 
-Install via: `pip install "genie[service]"`
-
-Run with: `genie cfg/service.yml ...`
-
-**Details:**
-- GenIE runs in user venv
-- GenIE dependencies share same user venv
-- Retargeting jobs are executed via Retargeting REST API
-- Needs externally managed Memgraph DB Server (see [`MEMGRAPH.md`](./MEMGRAPH.md))
-- Needs externally hosted Retargeting Service (see [`SERVICE.md`](./SERVICE.md))
+Use `cfg/service.yml` for LLVM/ETISS retargeting through an external job API.
+Set `SERVICE_URL` and `SEAL5_SERVICE_CONFIG` for your workers. The adapter has
+transport/artifact tests and real single-set LLVM/ETISS workload validation.
+PerfSim service execution uses a separate opt-in switch and saved HLS outputs.
+See [SERVICE.md](SERVICE.md).
 
 ### Dockerized (`dockerized`)
 

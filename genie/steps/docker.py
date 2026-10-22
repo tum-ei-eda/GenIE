@@ -75,7 +75,7 @@ class StartMemgraphServer(GenIEStep):
         # print("is_running", is_running)
         if not is_existing:
             client.containers.run(
-                image, detach=True, name=name, ports={f"{memgraph_port}": 7687, "7444": 7444, "3000": 3000}
+                image, detach=True, name=name, ports={"7687/tcp": (memgraph_host, memgraph_port)}
             )
         elif not is_running:
             container.start()

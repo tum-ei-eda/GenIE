@@ -28,12 +28,24 @@ from cloup.typing import Decorator
 from openlane.flows.cli import (
     set_log_level_cb,
     set_worker_count_cb,
-    initial_state_cb,
     only_cb,
     from_to_cb,
     condensed_cb,
     progressbar_cb,
 )
+
+
+def initial_state_cb(ctx, param, value):
+    """Load GenIE state, including its stage paths, from a CLI argument."""
+    if value is None:
+        return None
+    from click import BadParameter
+    from ..state import State
+    try:
+        with open(value, encoding="utf8") as stream:
+            return State.loads(stream.read())
+    except (OSError, ValueError, RuntimeError) as exc:
+        raise BadParameter(str(exc), ctx=ctx, param=param) from exc
 
 from .flow import GenIEFlow
 from ..common import cli, _get_process_limit

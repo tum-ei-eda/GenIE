@@ -178,61 +178,81 @@ class CheckMemgraph(GenIEStep):
 
 @GenIEStep.factory.register()
 class FixPermissions(GenIEStep):
-    """
-    TODO.
-    """
-
+    """Restore owner access on run-local artifacts when explicitly enabled."""
     id = "Misc.FixPermissions"
-    name = "Fix Permissions"
-    long_name = "Fix Permissions"
+    name = long_name = "Fix Permissions"
     inputs = []
     outputs = []
+    config_vars = [Variable("FIX_PERMISSIONS_ENABLE", bool, "Restore owner read/write access to run artifacts.", default=False)]
 
-    config_vars = [
-        # Variable(
-        #     "VERILOG_FILES",
-        #     List[Path],
-        #     "The paths of the design's Verilog files.",
-        # ),
-    ]
+    def run(self, state_in, **kwargs):
+        import os
+        import stat
+        from pathlib import Path
 
-    def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
-        kwargs, env = self.extract_env(kwargs)
-        views_updates: ViewsUpdate = {}
-        metrics_updates: MetricsUpdate = {}
-        # config = self.config
-        errors_count = 0
-        metrics_updates.update({"design__lint_error__count": errors_count})
-        sleep(5.0)
-        return views_updates, metrics_updates, {}
+        if not self.config["FIX_PERMISSIONS_ENABLE"]:
+            return {}, {}, {}
+        root = Path(self.step_dir).parent.resolve()
+        count = 0
+        for path in root.rglob("*"):
+            if path.is_symlink():
+                continue
+            mode = path.stat().st_mode
+            extra = stat.S_IRUSR | stat.S_IWUSR
+            if path.is_dir():
+                extra |= stat.S_IXUSR
+            if mode & extra != extra:
+                os.chmod(path, stat.S_IMODE(mode) | extra)
+                count += 1
+        return {}, {"permissions.updated_count": count}, {}
 
 
 @GenIEStep.factory.register()
 class CleanupTempFiles(GenIEStep):
-    """
-    TODO.
-    """
+    """Remove explicitly declared disposable artifacts within the current run.
 
+    Cleanup defaults to disabled. Persistent reports, installs and source trees
+    are never inferred as temporary from directory names.
+    """
     id = "Misc.CleanupTempFiles"
-    name = "Cleanup Temporary Files"
-    long_name = "Cleanup Temporary Files"
+    name = long_name = "Cleanup Temporary Files"
     inputs = []
     outputs = []
-
     config_vars = [
-        # Variable(
-        #     "VERILOG_FILES",
-        #     List[Path],
-        #     "The paths of the design's Verilog files.",
-        # ),
+        Variable("CLEANUP_ENABLE", bool, "Remove declared temporary run artifacts.", default=False),
     ]
 
-    def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
-        kwargs, env = self.extract_env(kwargs)
-        views_updates: ViewsUpdate = {}
-        metrics_updates: MetricsUpdate = {}
-        # config = self.config
-        errors_count = 0
-        metrics_updates.update({"design__lint_error__count": errors_count})
-        sleep(5.0)
-        return views_updates, metrics_updates, {}
+    def run(self, state_in, **kwargs):
+        import shutil
+        from pathlib import Path
+
+        if not self.config["CLEANUP_ENABLE"]:
+            return {}, {}, {}
+        root = Path(self.step_dir).parent.resolve()
+        targets = []
+        for key, value in state_in.paths.items():
+            if not key.startswith("temporary.") or value is None:
+                continue
+            path = Path(value)
+            resolved = path.resolve()
+            if resolved == root or root not in resolved.parents or path.is_symlink():
+                raise ValueError(f"Temporary artifact is outside the run or a symlink: {path}")
+            # Do not remove a directory holding a declared permanent artifact.
+            for other_key, other_value in state_in.paths.items():
+                if other_key.startswith("temporary.") or other_value is None:
+                    continue
+                other = Path(other_value).resolve()
+                if other == resolved or resolved in other.parents:
+                    raise ValueError(f"Temporary artifact contains permanent state path {other_key}: {path}")
+            targets.append((key, path))
+        removed = 0
+        updates = {}
+        for key, path in targets:
+            if path.is_dir():
+                shutil.rmtree(path)
+                removed += 1
+            elif path.exists():
+                path.unlink()
+                removed += 1
+            updates[key] = None
+        return {}, {"cleanup.removed_count": removed}, updates

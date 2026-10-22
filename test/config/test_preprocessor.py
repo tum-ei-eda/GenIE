@@ -60,14 +60,10 @@ def test_preprocess_dict():
     preprocessed = preprocess_dict(
         mmpt_raw,
         "/cwd",
-        pdk="sky130A",
-        pdkpath="/cwd",
-        scl="sky130_fd_sc_hd",
         readable_paths=["/cwd"],
     )
     expected = {
         "PDK": "sky130A",
-        "PDKPATH": "/cwd",
         "STD_CELL_LIBRARY": "sky130_fd_sc_hd",
         "DESIGN_DIR": "/cwd",
         "meta": {"version": 2},
