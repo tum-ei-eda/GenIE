@@ -16,3 +16,4 @@ See [development setup](SETUP.md) and [migration progress](../PROGRESS.md).
 - [`STEPS.md`](./OUTPUTS.md): Summary of GenIE steps
 - [`USAGE.md`](./USAGE.md): GenIE usage
 - [`WORKLOADS.md`](./WORKLOADS.md): Available workloads
+- [Continuous integration and workflow audit](CI.md)

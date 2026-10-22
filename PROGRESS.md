@@ -674,3 +674,13 @@ Every active script has a registered Python phase (`python -m genie.prototype --
 - Terminal exit **0**: baseline and composed architecture (all 110 individual extensions), runtime and compile/memory reports, and toolkit comparison all succeeded. Baseline **4,005,963** instructions / **41,896** ROM code; composed **3,135,562** instructions / **41,860** ROM code. This is the initial candidate set, distinct from the final five-instruction result.
 - Saved state: `/tmp/genie-workload-run/runs/RUN_2026-10-22_12-46-15/2-isaac-compareisebenchin_stageinitial/state_out.json`. Full suite after split-compiler correction: **142 passed**.
 - Removed an existing MLonMCU debug print that dumped the inherited environment during execution.
+
+
+### Separate migration CI and existing-workflow audit (2026-10-22)
+
+- User requested that added tests run in a separate GitHub Actions workflow and that existing CI be checked for currency.
+- Added `.github/workflows/migration-tests.yml`: push/PR/manual/nightly, Python 3.10/3.12/3.14, pinned prototype/toolkit checkouts, zstd installation, complete `test/steps` + `test/integration` collection, JUnit upload and an explicit no-skips/empty-suite guard.
+- Replaced the inherited OpenLane `ci.yml` with package/configuration CI: install from pyproject, pip check, syntax checks, all configuration tests, CLI smoke checks and wheel/sdist validation. Audit found unsupported Python3.8/3.9, absent Nix/design/submodule inputs, undefined PDK revision, and obsolete pytest/CLI flags. Obsolete publication jobs depended on those invalid builds; no publishing pipeline is claimed functional. Details in `docs/CI.md`.
+- Both workflows use read-only contents permissions, cancellation of superseded runs and current actions/checkout, setup-python and upload-artifact major versions (verified against their official release pages).
+- Fresh isolated environment `/tmp/genie-ci-check-venv` installed the real package and dependencies. Python3.10 validation: **138 migration tests passed, zero skips**, **4 configuration tests passed**, pip check clean, installed CLI help checks passed, wheel+sdist build and twine validation passed. actionlint1.7.12 accepted both workflow files.
+- Hosted Actions runs require pushing the changes; no hosted success or other matrix-interpreter result is claimed from local checks.
