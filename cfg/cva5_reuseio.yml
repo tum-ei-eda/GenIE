@@ -37,7 +37,7 @@ ISAAC_PROGRESS: true
 ### ISAAC_CORE_NAME: XIsaacCore
 ### ISAAC_SET_NAME: XIsaac
 ### ### ISAAC_TOOLKIT_CONFIG_YAML: $TOP_DIR/cfg/isaac_toolkit/default.yml
-### ### ISAAC_QUERY_CONFIG_YAML: $TOP_DIR/cfg/isaac/query/paper/cva5_reuseio.yml
+ISAAC_QUERY_CONFIG_YAML: cfg/isaac/query/paper/cva5_reuseio.yml
 ### ISAAC_LIMIT_RESULTS: ""
 ### ISAAC_MIN_ISO_WEIGHT: 0.05
 ### ISAAC_SCALE_ISO_WEIGHT: auto
