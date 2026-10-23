@@ -32,9 +32,18 @@ authentication, so use it only on a trusted network. Stop the temporary server
 with Ctrl-C; stopping it does not stop the flow. Keep it running after the CLI
 finishes to inspect the completed experiment.
 
+The page shows a completed/total progress bar, total elapsed time, and per-stage
+durations. Running timers refresh every second; finished durations stay fixed.
+Skipped steps are counted separately. Older completed stages use their existing
+`runtime.txt` files when available.
+
 The page shows all planned stages, with pending, running, completed, failed, and
-skipped states. Logs are collapsed initially. Expand **Live monitor** on a running
-stage or **Logs** on a finished stage. Open panels refresh once per second,
+skipped states. Stages appear in reverse execution order, with pending stages in a collapsed
+section. Completed stages have their own collapsible section, open by default;
+its expansion state is preserved during refreshes. The active stage’s **Live monitor** opens automatically; finished stages’
+**Logs** remain collapsed. Each compact card shows its duration beside the title
+and status, with the card color indicating the status. You can toggle any log
+panel manually. Open panels refresh once per second,
 showing the last 64 KiB of each top-level stage `.log` file. Full logs open through
 the links above the tail. A separate collapsed flow log includes orchestration
 messages. Stage errors and flow errors remain visible without expanding logs.
@@ -63,3 +72,15 @@ python -m unittest test.test_monitor -v
 
 The tests execute real CLI success, failure, and skip cases; observe subprocess
 output before stage completion; and check HTTP status, log tails, and path limits.
+
+Stages use numeric positions from the flow plan. Pending stages appear in forward
+execution order, while finished stages retain reverse order. Expand **Step data**
+to inspect available `config.json`, `state_in.json`, and `state_out.json` files.
+**Run data** includes `resolved.json` and any of those files present at run level.
+The viewer has expandable objects and arrays, file selection, manual refresh, and
+a raw JSON link. Files being written may temporarily be unavailable; refresh once
+the write finishes. Data panels start collapsed.
+
+For state input/output files, select **Metrics table** beside the file selector
+to view searchable metric/value rows. Switch to **JSON tree** for the full state.
+Nested metric objects are flattened into dotted metric names.

@@ -12,18 +12,56 @@ from urllib.error import HTTPError
 from urllib.request import urlopen
 from http.server import ThreadingHTTPServer
 
-from genie.monitor import RunStatus, handler_for, PAGE
+from genie.monitor import RunStatus, handler_for, PAGE, with_progress
 
 
 class MonitorTest(unittest.TestCase):
-    def test_snapshot_and_http_log_boundaries(self):
+    def test_progress_and_durations(self):
+        from unittest.mock import patch
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            steps = [SimpleNamespace(id=str(i), name=str(i)) for i in range(4)]
+            with patch("genie.monitor.time.time", return_value=100):
+                status = RunStatus(root, "Timing", steps)
+            try:
+                with patch("genie.monitor.time.time", return_value=102):
+                    status.stage("0", "running")
+                with patch("genie.monitor.time.time", return_value=107):
+                    status.stage("0", "completed")
+                    status.stage("1", "skipped")
+                    status.stage("2", "running")
+                data = with_progress(json.loads((root / "monitor.json").read_text()), root, now=110)
+                self.assertEqual(data["progress"], dict(total=4, completed=1, skipped=1))
+                self.assertEqual(data["elapsed"], 10)
+                self.assertEqual([s["elapsed"] for s in data["stages"]], [5, None, 3, None])
+                with patch("genie.monitor.time.time", return_value=112):
+                    status.finish("failed", "failed stage")
+                data = with_progress(json.loads((root / "monitor.json").read_text()), root, now=999)
+                self.assertEqual(data["elapsed"], 12)
+                self.assertEqual(data["stages"][2]["elapsed"], 5)
+            finally:
+                status.stopped.set()
+                status.heartbeat_thread.join()
+            (root / "old").mkdir()
+            (root / "old/runtime.txt").write_text("01:02:03.250")
+            legacy = dict(status="completed", started=100, finished=200,
+                          stages=[dict(status="completed", directory="old")])
+            self.assertEqual(with_progress(legacy, root)["stages"][0]["elapsed"], 3723.25)
+
+    def test_snapshot_and_http_log_boundaries(self):
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside:
+            root = Path(tmp)
+            # Harmless fixture outside the served run: symlinks must not expose it.
+            outside_file = Path(outside) / "private-fixture.txt"
+            outside_file.write_text("This fixture must never be served.")
             status = RunStatus(root, "Test", [SimpleNamespace(id="a", name="A")])
             stage_dir = root / "1-a"
             stage_dir.mkdir()
             (stage_dir / "tool.log").write_text("x" * 100000 + "LIVE END")
-            (stage_dir / "escape.log").symlink_to("/etc/passwd")
+            (stage_dir / "escape.log").symlink_to(outside_file)
+            (stage_dir / "config.json").write_text('{"nested": {"value": 42}, "text": "<script>"}')
+            (root / "resolved.json").write_text('{"BENCH": "test/data"}')
+            (stage_dir / "state_in.json").symlink_to(outside_file)
             status.stage("a", "running", stage_dir)
             server = ThreadingHTTPServer(("127.0.0.1", 0), handler_for(root))
             worker = threading.Thread(target=server.serve_forever, daemon=True)
@@ -34,6 +72,15 @@ class MonitorTest(unittest.TestCase):
                     with urlopen(base + path) as response:
                         return json.load(response)
                 self.assertEqual(get("/api/status")["stages"][0]["status"], "running")
+                self.assertEqual(get("/api/status")["stages"][0]["number"], 1)
+                self.assertEqual(get("/api/files?stage=a"), ["config.json"])
+                self.assertEqual(get("/api/files"), ["resolved.json"])
+                self.assertEqual(get("/api/data?stage=a&name=config.json")["nested"]["value"], 42)
+                self.assertEqual(get("/api/data?name=resolved.json")["BENCH"], "test/data")
+                for path in ("/api/data?stage=a&name=state_in.json", "/api/data?name=../resolved.json",
+                             "/api/data?name=monitor.json", "/api/files?stage=unknown"):
+                    with self.assertRaises(HTTPError):
+                        get(path)
                 logs = get("/api/logs?stage=a")["logs"]
                 self.assertEqual(len(logs), 1)
                 self.assertTrue(logs[0]["text"].endswith("LIVE END"))
