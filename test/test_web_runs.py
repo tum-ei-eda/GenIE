@@ -1,5 +1,6 @@
 """Submit real CLI runs over HTTP and immediately monitor them on the same server."""
 import json
+import os
 import tempfile
 import threading
 import time
@@ -14,6 +15,23 @@ from genie.web_runs import RunManager
 
 
 class WebRunsTest(unittest.TestCase):
+    def test_runs_sorted_by_displayed_datetime(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            attached = Path(tmp) / "attached"
+            attached.mkdir()
+            (attached / "monitor.json").write_text(json.dumps(dict(
+                name="Attached", status="completed", started=200, stages=[])))
+            manager = RunManager(tmp, attached=attached)
+            for number, started, modified in ((1, 100, 300), (2, 300, 100)):
+                job = manager.runs_dir / f"{number:032x}"
+                job.mkdir(parents=True)
+                manager.save(job, dict(name=str(number), started=started))
+                os.utime(job, (modified, modified))
+            self.assertEqual([run["started"] for run in manager.list()], [300, 200, 100])
+            (attached / "monitor.json").unlink()
+            self.assertEqual([run["id"] for run in manager.list()],
+                             [f"{2:032x}", f"{1:032x}", "attached"])
+
     def test_failed_stage_can_be_retried_without_starting_a_second_job(self):
         with tempfile.TemporaryDirectory() as tmp:
             manager = RunManager(tmp)

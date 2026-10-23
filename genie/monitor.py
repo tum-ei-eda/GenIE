@@ -164,7 +164,7 @@ function selectRun(id){
     const url=new URL(location.href);if(id)url.searchParams.set('run',id);else url.searchParams.delete('run');history.replaceState(null,'',url);
     for(const card of cards.values())card.el.remove();cards.clear();
     document.querySelector('#global-data').replaceChildren(dataViewer('','Run data'));
-    document.querySelector('#flow').textContent='';
+    const flow=document.querySelector('#flow');flow.textContent='';delete flow._logRun;delete flow._logKey;
     document.querySelector('#completed').open=true;document.querySelector('#pending').open=false;
     render({name:id?'Preparing run…':'Create or select a run',status:id?'starting':'idle',elapsed:0,stages:[],progress:{completed:0,total:0,skipped:0}});
     document.querySelector('#connection').textContent=id?'Connecting…':'Ready';
@@ -180,7 +180,27 @@ async function refreshRuns(){
 function timestamp(value){return value?new Date(value*1000).toLocaleString():''}
 function duration(seconds){if(seconds==null||!Number.isFinite(seconds))return '—';seconds=Math.max(0,Math.floor(seconds));const h=Math.floor(seconds/3600),m=Math.floor(seconds%3600/60),s=seconds%60;return (h?h+'h ':'')+(h||m?m+'m ':'')+s+'s'}
 async function get(url){const r=await fetch(url.startsWith('/api/')&&!['/api/app','/api/runs'].includes(url)?runURL(url):url,{cache:'no-store'});if(!r.ok)throw Error(await r.text());return r.json()}
-async function logs(box,stage){const requestedRun=activeRun;const data=await get('/api/logs?stage='+encodeURIComponent(stage));if(requestedRun!==activeRun)return;box.textContent=data.logs.map(l=>'── '+l.name+' (last 64 KiB) ──\\n'+l.text).join('\\n')||'No logs yet.';box.scrollTop=box.scrollHeight;let links=box.previousElementSibling;if(!links||!links.classList.contains('downloads')){links=document.createElement('p');links.className='downloads';box.before(links)}links.replaceChildren();for(const l of data.logs){const a=document.createElement('a');a.textContent='Full '+l.name;a.href=runURL('/api/log?stage='+encodeURIComponent(stage)+'&name='+encodeURIComponent(l.name));a.target='_blank';a.rel='noopener';links.append(a,document.createTextNode(' · '))}}
+async function logs(box,stage,key=null,live=true){
+    const requestedRun=activeRun;
+    if(!live&&box._logKey===key)return;
+    const data=await get('/api/logs?stage='+encodeURIComponent(stage));
+    if(requestedRun!==activeRun)return;
+    // Check after the request: the reader may have scrolled while it was in flight.
+    const first=box._logRun!==requestedRun,position=box.scrollTop;
+    const following=first||box.scrollHeight-box.clientHeight-position<=24;
+    const content=data.logs.map(l=>'── '+l.name+' (last 64 KiB) ──\\n'+l.text).join('\\n')||'No logs yet.';
+    if(box.textContent!==content){box.textContent=content;box.scrollTop=following?box.scrollHeight:position}
+    box._logRun=requestedRun;box._logKey=key;
+    let links=box.previousElementSibling;
+    if(!links||!links.classList.contains('downloads')){links=document.createElement('p');links.className='downloads';box.before(links)}
+    const names=JSON.stringify(data.logs.map(l=>l.name));
+    if(links._logNames!==names||links._logRun!==requestedRun){
+        links.replaceChildren();
+        for(const l of data.logs){const a=document.createElement('a');a.textContent='Full '+l.name;a.href=runURL('/api/log?stage='+encodeURIComponent(stage)+'&name='+encodeURIComponent(l.name));a.target='_blank';a.rel='noopener';links.append(a,document.createTextNode(' · '))}
+        links._logNames=names;links._logRun=requestedRun;
+    }
+}
+
 function jsonNode(value,key,depth=0){
     const object=value!==null&&typeof value==='object';
     const node=document.createElement(object?'details':'div');
@@ -312,8 +332,14 @@ async function update(){
         const requestedRun=activeRun,run=await get('/api/status');
         if(requestedRun!==activeRun)return;
         render(run);
-        for(const s of run.stages){if(requestedRun!==activeRun)return;const card=cards.get(s.id);if(card.detail.open)await logs(card.pre,s.id)}
-        if(document.querySelector('details.flow').open)await logs(document.querySelector('#flow'),'');
+        const terminal=['completed','failed','interrupted'].includes(run.status);
+        const logKey=requestedRun+':'+run.status+':'+String(run.returncode);
+        for(const s of run.stages){
+            if(requestedRun!==activeRun)return;
+            const card=cards.get(s.id);
+            if(card.detail.open)await logs(card.pre,s.id,logKey+':'+s.status,!terminal&&s.status==='running');
+        }
+        if(document.querySelector('details.flow').open)await logs(document.querySelector('#flow'),'',logKey,!terminal);
         document.querySelector('#connection').textContent='Connected · refreshes every second';
     }catch(e){document.querySelector('#connection').textContent='Waiting / connection error: '+e.message}
     finally{setTimeout(update,1000)}

@@ -83,8 +83,7 @@ class RunManager:
         if self.attached:
             entries.append(("attached", self.attached))
         if self.runs_dir.is_dir():
-            entries.extend((job.name, job / "run") for job in sorted(self.runs_dir.iterdir(),
-                           key=lambda p: p.stat().st_mtime, reverse=True)
+            entries.extend((job.name, job / "run") for job in self.runs_dir.iterdir()
                            if re.fullmatch(r"[0-9a-f]{32}", job.name) and (job / "job.json").is_file())
         result = []
         for run_id, root in entries:
@@ -94,7 +93,7 @@ class RunManager:
             except (OSError, ValueError, KeyError):
                 if run_id == "attached":
                     result.append(dict(id=run_id, name=root.name, status="waiting"))
-        return result
+        return sorted(result, key=lambda run: (run.get("started", float("-inf")), run["id"]), reverse=True)
 
     def console(self, root):
         if self.metadata(root) is not None:

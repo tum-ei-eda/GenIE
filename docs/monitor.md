@@ -98,7 +98,9 @@ above these sections. Whole-card colors indicate stage status. The active stage'
 **Live monitor** opens automatically; finished stages' **Logs** remain collapsed.
 Manual panel toggles are preserved during refreshes.
 
-Open logs refresh once per second with the last 64 KiB of each stage `.log` file.
+Live logs refresh once per second and follow new output only while you are at the
+bottom. Scrolling up pauses following; finished logs stop refreshing automatically.
+The viewer shows the last 64 KiB of each stage `.log` file.
 Full-log links are available above the tails. **Flow log** also includes CLI output,
 so configuration/startup errors are visible before any stage has started.
 
