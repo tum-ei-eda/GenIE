@@ -612,6 +612,9 @@ class GenIEFlow(ABC):
         handlers.append(handler)
         register_additional_handler(handler)
 
+        from ..monitor import RunStatus
+
+        self.monitor = RunStatus(self.run_dir, self.name, self.Steps)
         try:
             self.config_resolved_path = os.path.join(self.run_dir, "resolved.json")
             # print("self.config_resolved_path", self.config_resolved_path)
@@ -633,7 +636,11 @@ class GenIEFlow(ABC):
             # Stored until next start()
             self.step_objects += step_objects
 
+            self.monitor.finish("completed")
             return final_state
+        except BaseException as exc:
+            self.monitor.finish("interrupted" if isinstance(exc, (KeyboardInterrupt, SystemExit)) else "failed", exc)
+            raise
         finally:
             self.progress_bar.end()
             for registered_handlers in handlers:

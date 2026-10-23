@@ -1264,6 +1264,7 @@ class GenIEStep(ABC):
             try:
                 for line in process_stdout:
                     log_file.write(line)
+                    log_file.flush()
                     line_buffer.push(line)
                     for processor in output_processors:
                         if processor.process_line(line):
