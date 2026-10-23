@@ -44,3 +44,6 @@ sandbox/
 node_modules/
 yarn.lock
 package.jso
+
+# Runs launched from the monitor web app
+.genie-web-runs/

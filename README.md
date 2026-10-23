@@ -29,5 +29,5 @@ the projects [Scale4Edge](https://www.edacentrum.de/scale4edge/) (grant number 1
 
 ## Flow web monitor
 
-Run experiments from the CLI and inspect stages and live logs in a lightweight
-browser view. See [the monitor guide](docs/monitor.md) for startup and remote access.
+Launch experiments from a browser form or the CLI, then inspect stages, live
+logs, and metrics in the same lightweight web app. See [the monitor guide](docs/monitor.md) for startup and remote access.

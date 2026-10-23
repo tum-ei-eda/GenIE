@@ -394,7 +394,9 @@ class SequentialGenIEFlow(GenIEFlow):
             if not executing or cls.id in skipped_ids or gated:
                 info(f"Skipping step '{step.name}'…")
                 increment_ordinal = False
-                self.monitor.stage(step.id, "skipped")
+                prior = next(stage for stage in self.monitor.data["stages"] if stage["id"] == step.id)
+                if prior["status"] != "completed":
+                    self.monitor.stage(step.id, "skipped")
             elif cls.id == reproducible_resolved:
                 self.monitor.stage(step.id, "skipped")
                 step.create_reproducible(

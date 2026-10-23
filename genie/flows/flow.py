@@ -614,7 +614,7 @@ class GenIEFlow(ABC):
 
         from ..monitor import RunStatus
 
-        self.monitor = RunStatus(self.run_dir, self.name, self.Steps)
+        self.monitor = RunStatus(self.run_dir, self.name, self.Steps, resume_from=kwargs.get("frm"))
         try:
             self.config_resolved_path = os.path.join(self.run_dir, "resolved.json")
             # print("self.config_resolved_path", self.config_resolved_path)
