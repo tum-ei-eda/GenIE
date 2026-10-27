@@ -1,4 +1,4 @@
-## GenIE Workloads
+# GenIE Workloads
 
 GenIE can be used with any benchmarks/workloads supported by [MLonMCU](https://github.com/tum-ei-eda/mlonmcu).
 
@@ -6,7 +6,7 @@ The model/workload/benchmark can be specified using the `-c BENCH=frontend/name`
 
 *Hint:* It is recommended to always prefix the benchmark with the frontend to avoid conflicts.
 
-### List of tested workloads
+## List of tested workloads
 
 ```
 embench_iot/

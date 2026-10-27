@@ -44,7 +44,7 @@ class SetupDemo(GenIEStep):
             Optional[Path],
             "Existing DEMO_DIR clone.",
         ),
-        Variable("DEMO_REPO", str, "Clone URL of demo repo.", default="http://github.com/PhilippvK/isaac-demo.git"),
+        Variable("DEMO_REPO", str, "Clone URL of demo repo.", default="https://github.com/PhilippvK/isaac-demo.git"),
         Variable(
             "DEMO_REF",
             Optional[str],
@@ -123,7 +123,7 @@ class SetupETISS(GenIEStep):
         run_dir = pathlib.Path(self.step_dir).parent
         demo_dir = pathlib.Path(state_in.paths["demo.dir"])
         install_dir = pathlib.Path(state_in.paths["install.dir"])
-        ccache_dir = pathlib.Path(state_in.paths["ccache.dir"])
+        ccache_dir = state_in.paths.get("ccache.dir") or ""
         enable_ccache = config["ENABLE_CCACHE"]
         fallback_etiss_src_dir = demo_dir / "etiss"
         etiss_src_dir = config.get("ETISS_SRC_DIR") or fallback_etiss_src_dir
@@ -226,7 +226,7 @@ class SetupLLVM(GenIEStep):
         run_dir = pathlib.Path(self.step_dir).parent
         demo_dir = pathlib.Path(state_in.paths["demo.dir"])
         install_dir = pathlib.Path(state_in.paths["install.dir"])
-        ccache_dir = pathlib.Path(state_in.paths["ccache.dir"])
+        ccache_dir = state_in.paths.get("ccache.dir") or ""
         enable_ccache = config["ENABLE_CCACHE"]
 
         def save_path_file(name, x):
@@ -330,18 +330,19 @@ class SetupMLonMCU(GenIEStep):
         run_dir = pathlib.Path(self.step_dir).parent
         demo_dir = pathlib.Path(state_in.paths["demo.dir"])
         install_dir = pathlib.Path(state_in.paths["install.dir"])
-        # ccache_dir = pathlib.Path(state_in.paths["ccache.dir"])
+        # ccache_dir = state_in.paths.get("ccache.dir") or ""
         # enable_ccache = config["ENABLE_CCACHE"]
         venv_dir = pathlib.Path(state_in.paths["venv.dir"])
         fallback_mlonmcu_dir = demo_dir / "mlonmcu"
-        mlonmcu_dir = config.get("ETISS_HOME") or fallback_mlonmcu_dir
+        mlonmcu_dir = config.get("MLONMCU_DIR") or fallback_mlonmcu_dir
         mlonmcu_dir = pathlib.Path(mlonmcu_dir)
         # print("mlonmcu_dir", mlonmcu_dir)
         fallback_mlonmcu_home_dir = install_dir / "mlonmcu"
-        mlonmcu_home_dir = config.get("ETISS_HOME") or fallback_mlonmcu_home_dir
+        mlonmcu_home_dir = config.get("MLONMCU_HOME") or fallback_mlonmcu_home_dir
         mlonmcu_home_dir = pathlib.Path(mlonmcu_home_dir)
         # print("mlonmcu_home_dir", mlonmcu_home_dir)
         paths_updates["mlonmcu.home"] = mlonmcu_home_dir
+        paths_updates["mlonmcu.src_dir"] = mlonmcu_dir
         if is_populated(mlonmcu_home_dir) and not force_refresh:
             return views_updates, metrics_updates, paths_updates
         scripts_dir = demo_dir / "scripts"
@@ -364,54 +365,31 @@ class SetupMLonMCU(GenIEStep):
         template = demo_dir / "environment.yml.j2"
         env["MLONMCU_TEMPLATE"] = template  # TODO: expose
         env["TOP_DIR"] = run_dir
-        # check = True
-        # command = [setup_mlonmcu_script]
-        command = f"source {venv_dir}/bin/activate && {setup_mlonmcu_script}"
-
-        # subprocess_result = self.run_subprocess(
-        import subprocess
-
-        subprocess.check_output(command, env=env, shell=True, executable="/bin/bash")
-        # subprocess_result = self.run_subprocess(
-        #     [command],
-        #     env=env,
-        #     check=check,
-        #     shell=True,
-        #     **kwargs,
-        # )
-        # print("subprocess_result", subprocess_result)
+        env["VENV_DIR"] = str(venv_dir)
+        env["PATH"] = str(venv_dir / "bin") + os.pathsep + env.get("PATH", "")
+        self.run_subprocess([setup_mlonmcu_script], env=env, check=True, **kwargs)
         return views_updates, metrics_updates, paths_updates
 
 
 @GenIEStep.factory.register()
 class SetupM2ISAR(GenIEStep):
-    """
-    TODO.
-    """
-
+    """Install the checked-out M2-ISA-R package into the setup environment."""
     id = "Setup.SetupM2ISAR"
-    name = "Setup M2ISAR"
-    long_name = "Setup M2ISAR"
+    name = long_name = "Setup M2ISAR"
     inputs = []
     outputs = []
+    config_vars = [Variable("M2ISAR_SRC_DIR", Optional[Path], "Existing M2-ISA-R source tree.")]
 
-    config_vars = [
-        # Variable(
-        #     "VERILOG_FILES",
-        #     List[Path],
-        #     "The paths of the design's Verilog files.",
-        # ),
-    ]
-
-    def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
+    def run(self, state_in, **kwargs):
         kwargs, env = self.extract_env(kwargs)
-        views_updates: ViewsUpdate = {}
-        metrics_updates: MetricsUpdate = {}
-        # config = self.config
-        errors_count = 0
-        metrics_updates.update({"design__lint_error__count": errors_count})
-        sleep(5.0)
-        return views_updates, metrics_updates, {}
+        source = pathlib.Path(self.config.get("M2ISAR_SRC_DIR") or pathlib.Path(state_in.paths["demo.dir"]) / "M2-ISA-R")
+        python = pathlib.Path(state_in.paths["venv.dir"]) / "bin" / "python"
+        if not python.is_file():
+            raise FileNotFoundError(python)
+        if not source.is_dir():
+            raise FileNotFoundError(source)
+        self.run_subprocess([python, "-m", "pip", "install", "-e", source], env=env, check=True, **kwargs)
+        return {}, {}, {"m2isar.src_dir": source}
 
 
 @GenIEStep.factory.register()
@@ -576,7 +554,7 @@ class SetupMgclient(GenIEStep):
         run_dir = pathlib.Path(self.step_dir).parent
         demo_dir = pathlib.Path(state_in.paths["demo.dir"])
         install_dir = pathlib.Path(state_in.paths["install.dir"])
-        ccache_dir = pathlib.Path(state_in.paths["ccache.dir"])
+        ccache_dir = state_in.paths.get("ccache.dir") or ""
         enable_ccache = config["ENABLE_CCACHE"]
         fallback_mgclient_src_dir = demo_dir / "mgclient"
         mgclient_src_dir = config.get("MGCLIENT_SRC_DIR") or fallback_mgclient_src_dir

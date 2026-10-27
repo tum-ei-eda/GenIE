@@ -398,6 +398,11 @@ class GenIEConfig(GenericImmutableDict[str, Any]):
         for config_validated in configs_validated:
             try:
                 meta = Self.get_meta(config_validated)
+                # Overlay files without flow metadata keep the selected flow.
+                if meta.flow is None:
+                    meta.flow = config_obj.meta.flow
+                if meta.substituting_steps is None:
+                    meta.substituting_steps = config_obj.meta.substituting_steps
             except TypeError as e:
                 identifier = "configuration dict"
                 if is_string(config_validated):
@@ -438,6 +443,15 @@ class GenIEConfig(GenericImmutableDict[str, Any]):
         mutable = config_obj.copy_mut()
         for string in config_override_strings:
             key, value = string.split("=", 1)
+            try:
+                decoded = json.loads(value)
+                # Containers/quoted strings need JSON decoding; bare scalars
+                # retain typed-variable conversion (e.g. numeric thread counts
+                # accepted by an optional string/"auto" setting).
+                if decoded is None or isinstance(decoded, (list, dict, str)):
+                    value = decoded
+            except json.JSONDecodeError:
+                pass  # Preserve the established bare-string override syntax.
             mutable[key] = value
 
         config_obj = Self.__load_dict(

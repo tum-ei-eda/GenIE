@@ -42,7 +42,7 @@ def preprocess_dict(
         # Keys.pdk: pdk,
         # Keys.pdkpath: pdkpath,
         # Keys.scl: scl,
-        # Keys.design_dir: design_dir,
+        "DESIGN_DIR": design_dir,
     }
 
     preprocessed = process_config_dict(

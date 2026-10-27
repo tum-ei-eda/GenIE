@@ -7,7 +7,7 @@ readme = "README.md"
 license = "Apache-2.0"
 homepage = "https://github.com/tum-ei-eda/GenIE"
 repository = "https://github.com/tum-ei-eda/GenIE"
-documentation = "https://github.com/tum-ei-eda/GenIE/blob/main/README.md"
+documentation = "https://tum-ei-eda.github.io/GenIE/"
 
 
 [tool.poetry.dependencies]
@@ -18,11 +18,17 @@ pyyaml = ">=5,<7"
 rich = ">=12,<14"
 lxml = ">=4.9.0"
 deprecated = ">=1.2.10,<2"
-libparse = ">=0.3.1,<1"
+# The 0.3.1 sdist omits its Makefile; use the complete source on Python
+# versions without published wheels (including the pinned Yosys submodule).
+libparse = [
+    { version = ">=0.3.1,<1", python = "<3.14" },
+    { git = "https://github.com/efabless/libparse-python", rev = "cec8b6dfd3d1c97bc5ccd1d0a41c44e51bc9c1eb", python = ">=3.14" },
+]
 psutil = ">=5.9.0"
 httpx = ">=0.22.0,<0.29"
 yamlcore = "^0.0.2"
 semver = "^3.0.2"
+rapidfuzz = ">=3,<4"
 # openlane = "~=2.3.10"
 GitPython = "~=3.1.45"
 docker = "~=7.1.0"

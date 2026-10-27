@@ -1075,6 +1075,7 @@ class GenIEStep(ABC):
 
         debug(f"Step directory ▶ '{self.step_dir}'")
         self.start_time = time.time()
+        execution_started = time.monotonic()
 
         for input in self.inputs:
             value = state_in_result[input]
@@ -1089,6 +1090,8 @@ class GenIEStep(ABC):
             else:
                 raise StepError(f"{self.name}: subprocess {e.args} failed", underlying_error=e) from None
 
+        metrics_updates = {**metrics_updates,
+                           f"timing.{self.id}.seconds": time.monotonic() - execution_started}
         metrics = GenericImmutableDict(state_in_result.metrics, overrides=metrics_updates)
         paths = GenericImmutableDict(state_in_result.paths, overrides=paths_updates)
 
@@ -1198,6 +1201,12 @@ class GenIEStep(ABC):
         mkdirp(report_dir)
 
         log_path = log_to or self.get_log_path()
+        if log_to is None:
+            stem, extension = os.path.splitext(log_path)
+            ordinal = 2
+            while os.path.exists(log_path):
+                log_path = f"{stem}.{ordinal}{extension}"
+                ordinal += 1
         log_file = open(log_path, "w")
         cmd_str = [str(arg) for arg in cmd]
 
@@ -1255,6 +1264,7 @@ class GenIEStep(ABC):
             try:
                 for line in process_stdout:
                     log_file.write(line)
+                    log_file.flush()
                     line_buffer.push(line)
                     for processor in output_processors:
                         if processor.process_line(line):
@@ -1313,6 +1323,14 @@ class GenIEStep(ABC):
         else:
             kwargs = kwargs.copy()
             del kwargs["env"]
+        # The prototype launcher selects its interpreter from VENV_DIR. Carry
+        # the environment chosen by setup through state, including resumed runs.
+        state_future = getattr(self, "state_in", None)
+        if state_future is not None and state_future.done():
+            venv_dir = state_future.result().paths.get("venv.dir")
+            if venv_dir is not None:
+                env = env.copy()
+                env.setdefault("VENV_DIR", str(venv_dir))
         return (kwargs, env)
 
     @classmethod

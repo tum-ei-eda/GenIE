@@ -22,23 +22,18 @@ docker-image:
 	cat $(shell nix build --no-link --print-out-paths .#genie-docker -L --verbose) | docker load
 
 .PHONY: docs
+DOCS_PYTHON ?= python3
 docs:
-	$(MAKE) -C docs html
+	$(DOCS_PYTHON) scripts/build_docs.py
 
 .PHONY: host-docs
 host-docs:
-	python3 -m http.server --directory ./docs/build/html
+	$(DOCS_PYTHON) -m http.server --bind 127.0.0.1 --directory ./docs/_build/html
 
 .PHONY: watch-docs
 watch-docs:
-	nodemon\
-		-w .\
-		-e md,py,css\
-		-i "docs/build/**/*"\
-		-i "docs/build/*"\
-		-i "docs/source/reference/*_vars.md"\
-		-i "docs/source/reference/flows.md"\
-		-x "$(MAKE) docs && python3 -m http.server --directory docs/build/html"
+	nodemon -w docs -w genie -w scripts -e md,rst,py,txt \
+		-i 'docs/_build/**' -x '$(MAKE) docs && $(MAKE) host-docs'
 
 .PHONY: lint
 lint:

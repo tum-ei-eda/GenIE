@@ -394,7 +394,11 @@ class SequentialGenIEFlow(GenIEFlow):
             if not executing or cls.id in skipped_ids or gated:
                 info(f"Skipping step '{step.name}'…")
                 increment_ordinal = False
+                prior = next(stage for stage in self.monitor.data["stages"] if stage["id"] == step.id)
+                if prior["status"] != "completed":
+                    self.monitor.stage(step.id, "skipped")
             elif cls.id == reproducible_resolved:
+                self.monitor.stage(step.id, "skipped")
                 step.create_reproducible(
                     os.path.join(
                         self.dir_for_step(step),
@@ -404,17 +408,22 @@ class SequentialGenIEFlow(GenIEFlow):
                 break
             else:
                 step_list.append(step)
+                self.monitor.stage(step.id, "running", self.dir_for_step(step))
                 try:
-                    current_state = step.start(
-                        toolbox=self.toolbox,
-                        step_dir=self.dir_for_step(step),
-                    )
+                    with self.monitor.capture(self.dir_for_step(step)):
+                        current_state = step.start(
+                            toolbox=self.toolbox,
+                            step_dir=self.dir_for_step(step),
+                        )
                 except StepException as e:
                     raise FlowException(str(e)) from None
                 except DeferredStepError as e:
+                    self.monitor.stage(step.id, "failed", error=e)
                     deferred_errors.append(str(e))
                 except StepError as e:
                     raise FlowError(str(e)) from None
+                else:
+                    self.monitor.stage(step.id, "completed")
 
             self.progress_bar.end_stage(increment_ordinal=increment_ordinal)
 

@@ -81,7 +81,7 @@ def run(
             if meta := GenIEConfig.get_meta(config_file):
                 # to maintain backwards compat, in 3 you will need to explicitly
                 # set the flow you're substituting
-                target_flow_desc = meta.flow or flow_name or "Demo"
+                target_flow_desc = meta.flow or flow_name
 
                 if isinstance(target_flow_desc, str):
                     if found := GenIEFlow.factory.get(target_flow_desc):

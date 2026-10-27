@@ -7,6 +7,7 @@ from genie.config import Variable
 from genie.state import State
 
 import pandas as pd
+from .service import service_vars, retarget_service
 
 isaac_vars = [
     Variable(
@@ -43,6 +44,22 @@ isaac_core_name_var = Variable(
 )
 
 
+def record_global_artifacts(index_file, **artifacts):
+    """Publish retargeting installations for toolkit selection consumers."""
+    import yaml
+    index_file = pathlib.Path(index_file)
+    data = yaml.safe_load(index_file.read_text())
+    global_data = data.setdefault("global", {})
+    existing = global_data.get("artifacts")
+    if existing is None or existing == []:
+        existing = {}
+        global_data["artifacts"] = existing
+    if not isinstance(existing, dict):
+        raise ValueError("Candidate global artifacts must be a mapping or an empty list")
+    existing.update({key: str(value) for key, value in artifacts.items()})
+    index_file.write_text(yaml.safe_dump(data, sort_keys=False))
+
+
 class ISAACStep(GenIEStep):
 
     config_vars = [
@@ -58,6 +75,7 @@ class ISAACStep(GenIEStep):
         env: Optional[Dict] = None,
         has_force: bool = False,
         has_progress: bool = False,
+        has_log: bool = True,
     ):
         assert scripts_dir is not None
         launch_script = scripts_dir / "launch.sh"
@@ -70,7 +88,7 @@ class ISAACStep(GenIEStep):
         log_level = config["ISAAC_LOG_LEVEL"]
         progress = config["ISAAC_PROGRESS"]
         force = config["ISAAC_FORCE_OVERRIDE"]
-        if log_level is not None:
+        if has_log and log_level is not None:
             command += ["--log", log_level]
         if progress and has_progress:
             command += ["--progress"]
@@ -80,7 +98,7 @@ class ISAACStep(GenIEStep):
             ld_lib_path = env.get("LD_LIBRARY_PATH", "")
             ld_lib_path_new = f"{mgclient_lib_dir}:{ld_lib_path}"
             env["LD_LIBRARY_PATH"] = ld_lib_path_new
-        pythonpath = env.get("LD_LIBRARY_PATH", "")
+        pythonpath = env.get("PYTHONPATH", "")
         tool_dir = scripts_dir.parent / "memgraph_experiments"  # TODO: convert to python module and install via pip
         pythonpath_new = f"{tool_dir}:{pythonpath}"
         env["PYTHONPATH"] = pythonpath_new
@@ -160,15 +178,18 @@ class LoadConfig(ISAACStep):
         label = "sess"
         sess_dir = pathlib.Path(state_in.paths[f"{label}.dir"])
         assert sess_dir.is_dir(), f"Missing dir: {sess_dir}"
-        config_yaml = config["ISAAC_TOOLKIT_CONFIG_YAML"]
-        if config_yaml is not None:
-            self.run_isaac_toolkit(
-                ["isaac_toolkit.frontend.cfg.yaml", config_yaml],
-                scripts_dir=scripts_dir,
-                sess_dir=sess_dir,
-                has_force=True,
-                env=env,
-            )
+        config_yaml = config["ISAAC_TOOLKIT_CONFIG_YAML"] or demo_dir / "cfg" / "isaac_toolkit" / "default.yml"
+        config_yaml = pathlib.Path(config_yaml)
+        if not config_yaml.is_file():
+            raise FileNotFoundError(config_yaml)
+        self.run_isaac_toolkit(
+            ["isaac_toolkit.frontend.cfg.yaml", config_yaml],
+            scripts_dir=scripts_dir,
+            sess_dir=sess_dir,
+            has_force=True,
+            env=env,
+        )
+        paths_updates["isaac.config_yaml"] = config_yaml
         return views_updates, metrics_updates, paths_updates
 
 
@@ -322,15 +343,26 @@ class PickChoices(ISAACStep):
         ise_potential_pkl = sess_dir / "table" / "ise_potential.pkl"
         assert ise_potential_pkl.is_file(), f"Missing file: {ise_potential_pkl}"
         ise_potential_df = pd.read_pickle(ise_potential_pkl)
-        assert len(ise_potential_df) == 1
-        new_metrics = {f"{label}.{key}": val for key, val in ise_potential_df.iloc[0].to_dict().items()}
+        if ise_potential_df.empty or not ise_potential_df["has_potential"].all():
+            raise ValueError("Input is unsuitable for instruction-set extension discovery")
+        if len(ise_potential_df) == 1:
+            new_metrics = {f"{label}.{key}": val for key, val in ise_potential_df.iloc[0].to_dict().items()}
+        else:
+            new_metrics = {f"{label}.potential.[{i}].{key}": val
+                           for i, (_, row) in enumerate(ise_potential_df.iterrows())
+                           for key, val in row.to_dict().items()}
         metrics_updates.update(new_metrics)
         choices_pkl = sess_dir / "table" / "choices.pkl"
         assert choices_pkl.is_file(), f"Missing file: {choices_pkl}"
         choices_df = pd.read_pickle(choices_pkl)
-        temp = {"num_chocies": len(choices_df), "total_choices_rel_weight": choices_df["rel_weight"].sum()}
+        if choices_df.empty:
+            raise ValueError("No eligible discovery choices found")
+        temp = {"num_choices": len(choices_df), "num_chocies": len(choices_df),
+                "total_choices_rel_weight": choices_df["rel_weight"].sum()}
         new_metrics2 = {f"{label}.{key}": val for key, val in temp.items()}
         metrics_updates.update(new_metrics2)
+        paths_updates.update({f"{label}.choices_pkl": choices_pkl,
+                              f"{label}.ise_potential_pkl": ise_potential_pkl})
         return views_updates, metrics_updates, paths_updates
 
 
@@ -349,24 +381,49 @@ class ReportChoices(ISAACStep):
     config_vars = ISAACStep.config_vars
 
     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
-        kwargs, env = self.extract_env(kwargs)
-        views_updates: ViewsUpdate = {}
-        metrics_updates: MetricsUpdate = {}
-        paths_updates: PathsUpdate = {}
-        demo_dir = pathlib.Path(state_in.paths["demo.dir"])
-        scripts_dir = demo_dir / "scripts"
-        raise NotImplementedError
-        label = "sess"
-        sess_dir = pathlib.Path(state_in.paths[f"{label}.dir"])
-        assert sess_dir.is_dir(), f"Missing dir: {sess_dir}"
-        self.run_isaac_toolkit(
-            ["isaac_toolkit.report.choices"],
-            scripts_dir=scripts_dir,
-            sess_dir=sess_dir,
-            has_force=True,
-            env=env,
-        )
-        return views_updates, metrics_updates, paths_updates
+        import html
+        import re
+
+        sess = pathlib.Path(state_in.paths["sess.dir"])
+        choices = pd.read_pickle(state_in.paths.get("sess.choices_pkl") or sess / "table/choices.pkl")
+        if choices.empty:
+            raise ValueError("No discovery choices to report")
+        blocks = pd.read_pickle(sess / "table/llvm_bbs_new.pkl")
+        merged = choices.merge(blocks[["func_name", "bb_name", "start", "end"]],
+                               on=["func_name", "bb_name"], how="left", validate="many_to_one")
+        dump = pathlib.Path(state_in.paths["trace.output_dir"]) / "generic_mlonmcu.dump"
+        instructions = []
+        for line in dump.read_text().splitlines():
+            match = re.match(r"^\s*([0-9a-fA-F]+):", line)
+            if match:
+                instructions.append((int(match[1], 16), line))
+        columns = ["func_name", "bb_name", "rel_weight", "num_instrs", "freq", "start", "end"]
+        sections = []
+        for i, row in merged.iterrows():
+            if pd.isna(row.start) or pd.isna(row.end):
+                raise ValueError(f"Missing block address for {row.func_name}/{row.bb_name}")
+            start, end = int(row.start), int(row.end)
+            snippet = "\n".join(line for address, line in instructions if start <= address < end)
+            if not snippet:
+                raise ValueError(f"No disassembly for block at {start:x}")
+            values = [row.func_name, row.bb_name, f"{row.rel_weight:.6f}", row.num_instrs,
+                      row.freq, f"0x{start:x}", f"0x{end:x}"]
+            sections.append(f"<h2>Choice {i}</h2><table><tr>" +
+                "".join(f"<th>{name}</th>" for name in columns) + "</tr><tr>" +
+                "".join(f"<td>{html.escape(str(value))}</td>" for value in values) +
+                f"</tr></table><pre><code>{html.escape(snippet)}</code></pre>")
+        fragment = "\n".join(sections)
+        output = pathlib.Path(self.step_dir)
+        output.mkdir(parents=True, exist_ok=True)
+        full, minimal = output / "choices_summary.html", output / "choices_summary_min.html"
+        full.write_text('<!doctype html><html lang="en"><head><meta charset="utf-8">'
+                        '<title>Choices Summary</title><style>body{font-family:sans-serif;margin:2em}'
+                        'table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:.5em}'
+                        'pre{background:#f5f5f5;padding:1em;overflow:auto}</style>'
+                        '</head><body><h1>Choices Summary</h1>' +
+                        fragment + "</body></html>")
+        minimal.write_text(fragment)
+        return {}, {}, {"sess.choices_summary_html": full, "sess.choices_summary_min_html": minimal}
 
 
 @GenIEStep.factory.register()
@@ -382,6 +439,8 @@ class PurgeCDFGDB(ISAACStep):
     outputs = []
 
     config_vars = ISAACStep.config_vars + [
+        Variable("MEMGRAPH_HOST", str, "Hostname or URL of Memgraph Server", default="localhost"),
+        Variable("MEMGRAPH_PORT", int, "Port of Memgraph Server", default=7687),
         Variable(
             "ISAAC_PURGE_CDFG_DB",
             bool,
@@ -404,11 +463,20 @@ class PurgeCDFGDB(ISAACStep):
         label = "sess"
         sess_dir = pathlib.Path(state_in.paths[f"{label}.dir"])
         assert sess_dir.is_dir(), f"Missing dir: {sess_dir}"
+        # Purge reads the persisted session endpoint, unlike export/query which
+        # honor environment overrides. Refuse an endpoint mismatch explicitly.
+        import yaml
+        session_config = yaml.safe_load((sess_dir / "config.yml").read_text())
+        endpoint = session_config.get("memgraph", {})
+        expected = (config.get("MEMGRAPH_HOST", "localhost"), config.get("MEMGRAPH_PORT", 7687))
+        actual = (endpoint.get("hostname", "localhost"), endpoint.get("port", 7687))
+        if actual != expected:
+            raise ValueError(f"Purge session endpoint {actual} differs from configured endpoint {expected}")
         self.run_isaac_toolkit(
             ["isaac_toolkit.utils.memgraph.purge_db"],
             scripts_dir=scripts_dir,
             sess_dir=sess_dir,
-            has_force=True,
+            has_force=False,
             env=env,
         )
         return views_updates, metrics_updates, paths_updates
@@ -427,6 +495,7 @@ class PushCDFG(ISAACStep):
     outputs = []
 
     config_vars = ISAACStep.config_vars + [
+        Variable("CDFG_STAGE", int, "LLVM CDFG stage mask used for export and query.", default=32),
         Variable("MEMGRAPH_HOST", str, "Hostname or URL of Memgraph Server", default="localhost"),
         Variable("MEMGRAPH_PORT", int, "Port of Memgraph Server", default=7687),
     ]
@@ -442,7 +511,7 @@ class PushCDFG(ISAACStep):
         label = "sess"
         sess_dir = pathlib.Path(state_in.paths[f"{label}.dir"])
         assert sess_dir.is_dir(), f"Missing dir: {sess_dir}"
-        cdfg_stage = 32  # TODO: move to isaac config
+        cdfg_stage = self.config["CDFG_STAGE"]
         in_label = "trace"
         full_label = state_in.metrics[f"{in_label}.label"]
         config = self.config
@@ -483,20 +552,20 @@ class QueryCandidates(ISAACStep):
     outputs = []
 
     config_vars = ISAACStep.config_vars + [
+        Variable("CDFG_STAGE", int, "LLVM CDFG stage mask used for export and query.", default=32),
         Variable(
             "ISAAC_QUERY_CONFIG_YAML",
             Optional[str],
             "Custom ISAAC Query config.",
             default=None,
         ),
-        # TODO: move to flow/sess settings?
-        # ISAAC_LIMIT_RESULTS
-        # ISAAC_MIN_ISO_WEIGHT=0.05
-        # ISAAC_SCALE_ISO_WEIGHT=${ISAAC_SCALE_ISO_WEIGHT:-"auto"}
-        # XLEN=${XLEN:-32}
-        # ISAAC_SORT_BY="IsoWeight"
-        # ISAAC_TOPK
-        # ISAAC_PARTITION_WITH_MAXMISO=auto
+        Variable("ISAAC_LIMIT_RESULTS", Optional[int], "Maximum database query results.", default=None),
+        Variable("ISAAC_XLEN", Optional[int], "Query word size; otherwise use target metrics/toolkit default.", default=None, deprecated_names=["XLEN"]),
+        Variable("ISAAC_MIN_ISO_WEIGHT", Optional[float], "Minimum isomorphism weight.", default=None),
+        Variable("ISAAC_SCALE_ISO_WEIGHT", Optional[str], "Isomorphism-weight scaling mode.", default=None),
+        Variable("ISAAC_SORT_BY", Optional[str], "Candidate metric used for query ordering.", default=None),
+        Variable("ISAAC_TOPK", Optional[int], "Maximum retained query candidates.", default=None),
+        Variable("ISAAC_PARTITION_WITH_MAXMISO", Optional[str], "MaxMISO partitioning mode.", default=None),
         Variable("MEMGRAPH_HOST", str, "Hostname or URL of Memgraph Server", default="localhost"),
         Variable("MEMGRAPH_PORT", int, "Port of Memgraph Server", default=7687),
     ]
@@ -515,7 +584,7 @@ class QueryCandidates(ISAACStep):
         out_dir = work_dir / name
         out_dir.mkdir(parents=True, exist_ok=True)
         assert sess_dir.is_dir(), f"Missing dir: {sess_dir}"
-        cdfg_stage = 32  # TODO: move to isaac config
+        cdfg_stage = self.config["CDFG_STAGE"]
         in_label = "trace"
         full_label = state_in.metrics[f"{in_label}.label"]
         extra_args = []
@@ -523,6 +592,21 @@ class QueryCandidates(ISAACStep):
         isaac_query_config_yaml = config["ISAAC_QUERY_CONFIG_YAML"]
         if isaac_query_config_yaml:
             extra_args += ["--query-config-yaml", isaac_query_config_yaml]
+        for key, option in (
+            ("ISAAC_LIMIT_RESULTS", "--limit-results"), ("ISAAC_XLEN", "--xlen"),
+            ("ISAAC_MIN_ISO_WEIGHT", "--min-iso-weight"), ("ISAAC_SCALE_ISO_WEIGHT", "--scale-iso-weight"),
+            ("ISAAC_SORT_BY", "--sort-by"), ("ISAAC_TOPK", "--topk"),
+            ("ISAAC_PARTITION_WITH_MAXMISO", "--partition-with-maxmiso"),
+        ):
+            value = config[key]
+            if key == "ISAAC_XLEN" and value is None:
+                value = state_in.metrics.get("target.xlen")
+            if value is not None:
+                if key in ("ISAAC_LIMIT_RESULTS", "ISAAC_TOPK", "ISAAC_MIN_ISO_WEIGHT") and value < 0:
+                    raise ValueError(f"{key} must be nonnegative")
+                if key == "ISAAC_XLEN" and value not in (32, 64):
+                    raise ValueError("ISAAC_XLEN must be 32 or 64")
+                extra_args += [option, str(value)]
         extra_args += ["--workdir", out_dir]
         extra_args += ["--label", full_label]
         extra_args += ["--stage", cdfg_stage]
@@ -540,14 +624,24 @@ class QueryCandidates(ISAACStep):
             env=env,
         )
         combined_index_file = out_dir / "combined_index.yml"
+        if not combined_index_file.is_file():
+            raise FileNotFoundError(combined_index_file)
         names_csv = out_dir / "names.csv"
         assert names_csv.is_file(), f"Missing file: {names_csv}"
         names_df = pd.read_csv(names_csv)
         print("names_df", names_df)
         num_candidates = len(names_df)
-        temp = {f"{name}.workdir": out_dir, f"{name}.index": combined_index_file}
+        temp = {f"{name}.workdir": out_dir, f"{name}.index": combined_index_file,
+                f"{name}.names_csv": names_csv}
+        pdf = out_dir / "all_io_subs.pdf"
+        if pdf.is_file():
+            temp[f"{name}.all_io_subs_pdf"] = pdf
+        query_metrics = out_dir / "combined_query_metrics.csv"
+        if query_metrics.is_file():
+            temp[f"{name}.query_metrics_csv"] = query_metrics
         temp2 = {f"{name}.num_candidates": num_candidates}
-        assert num_candidates > 0, "No candidates found. Aborting..."
+        if num_candidates == 0:
+            raise ValueError("No candidates found. Aborting...")
         paths_updates.update(temp)
         metrics_updates.update(temp2)
         return views_updates, metrics_updates, paths_updates
@@ -592,6 +686,15 @@ class GenerateInstrs(ISAACStep):
         extra_args += ["--workdir", out_dir]
         extra_args += ["--gen-dir", gen_dir]
         extra_args += ["--index", index_file]
+        encoding_metrics = out_dir / "total_encoding_metrics.csv"
+        encoding_score = out_dir / "encoding_score.csv"
+        self.run_isaac_toolkit(
+            ["isaac_toolkit.utils.analyze_encoding", index_file, "-o", encoding_metrics,
+             "--score", encoding_score], scripts_dir=scripts_dir, env=env,
+        )
+        if not encoding_score.is_file():
+            raise FileNotFoundError(encoding_score)
+        paths_updates[f"{name}.encoding_score_csv"] = encoding_score
         # TODO: write $WORK/encoding_score${SUFFIX}.csv?
         self.run_isaac_toolkit(
             ["isaac_toolkit.generate.ise.generate_cdsl", *extra_args],
@@ -707,9 +810,14 @@ class RetargetLLVM(ISAACStep):
     inputs = []
     outputs = []
     splitted = False
+    in_stage = "initial"
 
-    config_vars = ISAACStep.config_vars + [
+    config_vars = ISAACStep.config_vars + service_vars + [
+        Variable("USE_SEAL5_SERVICE", bool, "Retarget LLVM through the job API.", default=False),
         isaac_set_name_var,
+        Variable("SEAL5_BUILD_DIR", Optional[str], "Reusable local Seal5 build workspace.", default=None),
+        Variable("SEAL5_LLVM_REPO", Optional[str], "Override LLVM clone source for local retargeting.", default=None),
+        Variable("SEAL5_LLVM_REF", Optional[str], "Override LLVM branch or tag used by the local adapter.", default=None),
         Variable(
             "USE_SEAL5_DOCKER",
             bool,
@@ -737,13 +845,15 @@ class RetargetLLVM(ISAACStep):
     ]
 
     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
+        if self.config.get("USE_SEAL5_SERVICE", False):
+            return retarget_service(self, state_in, compiler=True)
         kwargs, env = self.extract_env(kwargs)
         views_updates: ViewsUpdate = {}
         metrics_updates: MetricsUpdate = {}
         paths_updates: PathsUpdate = {}
         demo_dir = pathlib.Path(state_in.paths["demo.dir"])
         scripts_dir = demo_dir / "scripts"
-        name = "initial"
+        name = self.in_stage
         label = "sess"
         index_file = pathlib.Path(state_in.paths[f"{name}.index"])
         assert index_file.is_file(), f"Missing file: {index_file}"
@@ -756,6 +866,10 @@ class RetargetLLVM(ISAACStep):
         gen_dir = out_dir / "gen"
         gen_dir.mkdir(exist_ok=True)
         assert sess_dir.is_dir(), f"Missing dir: {sess_dir}"
+        conventional_index = out_dir / "combined_index.yml"
+        if index_file.resolve() != conventional_index.resolve():
+            import shutil
+            shutil.copy2(index_file, conventional_index)
         # xlen = state_in.metrics["target.xlen"]
         # TODO: populate in CollectTargetMetrics
         xlen = state_in.metrics.get("target.xlen", 32)
@@ -765,13 +879,13 @@ class RetargetLLVM(ISAACStep):
         docker_dir = demo_dir / "docker"
         seal5_script_local = docker_dir / "seal5_script_local.sh"
         env["SEAL5_SCRIPT_LOCAL"] = seal5_script_local
-        mgclient_install_dir = pathlib.Path(state_in.paths["mgclient.install_dir"])
+        mgclient_install_dir = pathlib.Path(state_in.paths.get("mgclient.install_dir") or pathlib.Path(state_in.paths["mgclient.lib_dir"]).parent)
         env["MGCLIENT_INSTALL_DIR"] = mgclient_install_dir
-        enable_ccache = True  # TODO: expose
+        env["MGCLIENT_ROOT"] = mgclient_install_dir
+        enable_ccache = bool(state_in.paths.get("ccache.dir"))
         env["CCACHE"] = str(int(enable_ccache))
-        ccache_dir = pathlib.Path(state_in.paths["ccache.dir"])
+        ccache_dir = state_in.paths.get("ccache.dir") or ""
         env["CCACHE_DIR"] = ccache_dir
-        ccache_dir = pathlib.Path(state_in.paths["ccache.dir"])
         cfg_dir = demo_dir / "cfg"
         seal5_cfg_dir = cfg_dir / "seal5"
         env["SEAL5_CFG_DIR"] = seal5_cfg_dir
@@ -781,8 +895,23 @@ class RetargetLLVM(ISAACStep):
             state_in.paths.get("llvm.src_dir", demo_dir / "llvm-project")
         )  # TODO: drop fallback
         env["LLVM_DIR"] = llvm_src_dir
+        env["LLVM_REPO"] = config["SEAL5_LLVM_REPO"] or str(llvm_src_dir)
+        if config["SEAL5_LLVM_REF"]:
+            env["LLVM_REF"] = config["SEAL5_LLVM_REF"]
         set_name = config["ISAAC_SET_NAME"]
         use_docker = config["USE_SEAL5_DOCKER"]
+        shared_build = config["SEAL5_BUILD_DIR"] or state_in.paths.get("temporary.initial.seal5_build")
+        if not use_docker and (config["SEAL5_LLVM_REPO"] or config["SEAL5_LLVM_REF"] or shared_build):
+            # Toolkit versions overwrite LLVM_REPO/LLVM_REF before invoking the
+            # script. Apply explicit overrides at that final adapter boundary.
+            env["GENIE_SEAL5_SCRIPT"] = str(seal5_script_local)
+            if shared_build:
+                env["GENIE_SEAL5_HOME"] = str(pathlib.Path(shared_build).resolve())
+            if config["SEAL5_LLVM_REPO"]:
+                env["GENIE_LLVM_REPO"] = config["SEAL5_LLVM_REPO"]
+            if config["SEAL5_LLVM_REF"]:
+                env["GENIE_LLVM_REF"] = config["SEAL5_LLVM_REF"]
+            env["SEAL5_SCRIPT_LOCAL"] = str(pathlib.Path(__file__).with_name("seal5_local_adapter.py"))
         extra_args = []
         extra_args += ["--workdir", out_dir]
         # extra_args += ["--label", ?]
@@ -845,6 +974,14 @@ class RetargetLLVM(ISAACStep):
 
         paths_updates[f"{name}.{seal5_name}.seal5_score_csv"] = seal5_score_csv
         paths_updates[f"{name}.{seal5_name}.install_dir"] = seal5_llvm_install_dir
+        temporary_build = pathlib.Path(shared_build) if shared_build and not use_docker else out_dir / mode / "temp" / "seal5_llvm"
+        if temporary_build.is_dir():
+            paths_updates[f"temporary.{name}.seal5_build"] = temporary_build
+        diff_csv = seal5_out_dir / "seal5_reports" / "diff.csv"
+        if diff_csv.is_file():
+            paths_updates[f"{name}.{seal5_name}.diff_csv"] = diff_csv
+        if self.splitted:
+            record_global_artifacts(index_file, LLVM_INSTALL_DIR=seal5_llvm_install_dir)
         return views_updates, metrics_updates, paths_updates
 
 
@@ -860,7 +997,13 @@ class RetargetISS(ISAACStep):
     inputs = []
     outputs = []
 
-    config_vars = ISAACStep.config_vars + [
+    in_stage = "initial"
+    perf_sim = False
+
+    config_vars = ISAACStep.config_vars + service_vars + [
+        Variable("USE_ETISS_SERVICE", bool, "Retarget ETISS through the job API.", default=False),
+        Variable("USE_ETISS_PERF_SERVICE", bool, "Retarget PerfSim through the job API.", default=False),
+        Variable("USE_ETISS_PERF_DOCKER", bool, "Run PerfSim retargeting in Docker.", default=False),
         isaac_set_name_var,
         Variable(
             "USE_ETISS_DOCKER",
@@ -890,13 +1033,15 @@ class RetargetISS(ISAACStep):
     ]
 
     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
+        if self.config.get("USE_ETISS_PERF_SERVICE" if self.perf_sim else "USE_ETISS_SERVICE", False):
+            return retarget_service(self, state_in)
         kwargs, env = self.extract_env(kwargs)
         views_updates: ViewsUpdate = {}
         metrics_updates: MetricsUpdate = {}
         paths_updates: PathsUpdate = {}
         demo_dir = pathlib.Path(state_in.paths["demo.dir"])
         scripts_dir = demo_dir / "scripts"
-        name = "initial"
+        name = self.in_stage
         label = "sess"
         index_file = pathlib.Path(state_in.paths[f"{name}.index"])
         assert index_file.is_file(), f"Missing file: {index_file}"
@@ -909,6 +1054,22 @@ class RetargetISS(ISAACStep):
         gen_dir = out_dir / "gen"
         gen_dir.mkdir(exist_ok=True)
         assert sess_dir.is_dir(), f"Missing dir: {sess_dir}"
+        # The toolkit retargeting stages still require this conventional filename.
+        # Keep the canonical state index authoritative for noninitial stages.
+        conventional_index = out_dir / "combined_index.yml"
+        if index_file.resolve() != conventional_index.resolve():
+            import shutil
+            shutil.copy2(index_file, conventional_index)
+        if self.perf_sim:
+            import yaml
+            index_data = yaml.safe_load(conventional_index.read_text())
+            artifacts = index_data.setdefault("global", {}).setdefault("artifacts", {})
+            hls_output = state_in.paths.get(f"{name}.hls.default.output_dir")
+            if hls_output:
+                artifacts["HLS_DIR"] = str(pathlib.Path(hls_output).parent)
+                conventional_index.write_text(yaml.safe_dump(index_data, sort_keys=False))
+            if not artifacts.get("HLS_DIR"):
+                raise ValueError("PerfSim retargeting requires HLS_DIR in the index or stage HLS output")
         # xlen = state_in.metrics["target.xlen"]
         # TODO: populate in CollectTargetMetrics
         xlen = state_in.metrics.get("target.xlen", 32)
@@ -916,15 +1077,15 @@ class RetargetISS(ISAACStep):
         # TODO: move to isaac yaml
         config = self.config
         docker_dir = demo_dir / "docker"
-        etiss_script_local = docker_dir / "etiss_script_local.sh"
-        env["ETISS_SCRIPT_LOCAL"] = etiss_script_local
-        enable_ccache = True  # TODO: expose
+        etiss_script_local = docker_dir / ("etiss_perf_script_local.sh" if self.perf_sim else "etiss_script_local.sh")
+        env["ETISS_PERF_SCRIPT_LOCAL" if self.perf_sim else "ETISS_SCRIPT_LOCAL"] = etiss_script_local
+        enable_ccache = bool(state_in.paths.get("ccache.dir"))
         env["CCACHE"] = str(int(enable_ccache))
-        ccache_dir = pathlib.Path(state_in.paths["ccache.dir"])
+        ccache_dir = state_in.paths.get("ccache.dir") or ""
         env["CCACHE_DIR"] = ccache_dir
         # TODO: use already cloned etiss repo?
         # core_name = config["ISAAC_CORE_NAME"]
-        use_docker = config["USE_ETISS_DOCKER"]
+        use_docker = config["USE_ETISS_PERF_DOCKER" if self.perf_sim else "USE_ETISS_DOCKER"]
         extra_args = []
         extra_args += ["--workdir", out_dir]
         # extra_args += ["--label", ?]
@@ -945,17 +1106,33 @@ class RetargetISS(ISAACStep):
             extra_args += ["--cleanup"]
         # TODO: write $WORK/encoding_score${SUFFIX}.csv?
         self.run_isaac_toolkit(
-            ["isaac_toolkit.flow.demo.stage.retargeting.iss", *extra_args],
+            ["isaac_toolkit.flow.demo.stage.retargeting." + ("iss_perf" if self.perf_sim else "iss"), *extra_args],
             scripts_dir=scripts_dir,
             sess_dir=sess_dir,
             has_force=True,
             env=env,
         )
-        etiss_name = "etiss"
+        etiss_name = "etiss_perf" if self.perf_sim else "etiss"
         etiss_out_dir = out_dir / mode / etiss_name
-        etiss_install_dir = etiss_out_dir / "etiss_install"
+        etiss_install_dir = etiss_out_dir / f"{etiss_name}_install"
         assert etiss_install_dir.is_dir(), f"Missing dir: {etiss_install_dir}"
         paths_updates[f"{name}.{etiss_name}.install_dir"] = etiss_install_dir
+        if self.perf_sim:
+            uarchs_csv = etiss_out_dir / "uarchs.csv"
+            if not uarchs_csv.is_file():
+                raise FileNotFoundError(uarchs_csv)
+            paths_updates[f"{name}.etiss_perf.uarchs_csv"] = uarchs_csv
+            from .service import extract_etiss_source
+            paths_updates[f"{name}.etiss_perf.src_dir"] = extract_etiss_source(etiss_out_dir)
+        temporary_build = out_dir / mode / "temp" / etiss_name
+        if temporary_build.is_dir():
+            paths_updates[f"temporary.{name}.{etiss_name}_build"] = temporary_build
+        patch_stat = etiss_out_dir / "etiss_patch.stat"
+        if patch_stat.is_file():
+            paths_updates[f"{name}.{etiss_name}.patch_stat"] = patch_stat
+        record_global_artifacts(index_file, **{
+            "ETISS_PERF_INSTALL_DIR" if self.perf_sim else "ETISS_INSTALL_DIR": etiss_install_dir
+        })
         return views_updates, metrics_updates, paths_updates
 
 
@@ -964,6 +1141,8 @@ class CompareISEBench(ISAACStep):
     """
     TODO.
     """
+
+    perf_sim = False
 
     id = "ISAAC.CompareISEBench"
     name = "Compare ISE Bench"
@@ -991,20 +1170,31 @@ class CompareISEBench(ISAACStep):
         work_dir = sess_dir / "work"
         out_dir = work_dir / self.in_stage
         out_dir.mkdir(parents=True, exist_ok=True)
-        report_compare = pathlib.Path(state_in.paths[f"{self.in_stage}.ise_bench.output_dir"]) / "report.csv"
-        assert report_compare.is_file(), f"Missing file: {report_compare}"
-        report_compare_mem = pathlib.Path(state_in.paths[f"{self.in_stage}.ise_bench_mem.output_dir"]) / "report.csv"
-        assert report_compare_mem.is_file(), f"Missing file: {report_compare_mem}"
-        suffix = ""
-        if self.others:
-            suffix += "_others"
-            raise NotImplementedError
+        suffix = "_others" if self.others else ""
         if self.per_instr:
             suffix += "_per_instr"
+        report_compare = pathlib.Path(state_in.paths[f"{self.in_stage}.ise_bench{suffix}.output_dir"]) / "report.csv"
+        report_compare_mem = pathlib.Path(state_in.paths[f"{self.in_stage}.ise_bench{suffix}_mem.output_dir"]) / "report.csv"
+        for report in (report_compare, report_compare_mem):
+            if not report.is_file():
+                raise FileNotFoundError(report)
         compare_csv = out_dir / f"compare{suffix}.csv"
+        if self.others:
+            mem_csv = out_dir / "compare_others_mem.csv"
+            for report, output, extra in ((report_compare, compare_csv, []),
+                                          (report_compare_mem, mem_csv, ["--mem"])):
+                self.run_subprocess(
+                    [scripts_dir / "launch.sh", "python3", scripts_dir / "analyze_reuse.py",
+                     report, "--print-df", "--output", output, *extra],
+                    env=env, check=True, **kwargs,
+                )
+                if not output.is_file():
+                    raise FileNotFoundError(output)
+            return {}, {}, {f"{self.in_stage}.compare_others_csv": compare_csv,
+                            f"{self.in_stage}.compare_others_mem_csv": mem_csv}
         extra_args = [report_compare, "--mem-report", report_compare_mem, "--print-df", "--output", compare_csv]
         self.run_isaac_toolkit(
-            ["isaac_toolkit.utils.analyze_compare", *extra_args],
+            ["isaac_toolkit.utils.analyze_compare_perf" if self.perf_sim else "isaac_toolkit.utils.analyze_compare", *extra_args],
             scripts_dir=scripts_dir,
             sess_dir=None,
             has_force=False,
@@ -1021,12 +1211,29 @@ class CompareISEBench(ISAACStep):
         assert compare_csv.is_file(), f"Missing file: {compare_csv}"
         paths_updates[f"{self.in_stage}.compare{suffix}_csv"] = compare_csv
         compare_df = pd.read_csv(compare_csv)
-        if not self.others and not self.per_instr:
+        if self.perf_sim:
+            ranking = out_dir / "uarch_ranking.csv"
+            self.run_isaac_toolkit(
+                ["isaac_toolkit.utils.rank_uarchs", compare_csv, "--uarchs-csv",
+                 state_in.paths[f"{self.in_stage}.etiss_perf.uarchs_csv"], "--output", ranking],
+                scripts_dir=scripts_dir, sess_dir=None, has_force=False, env=env,
+            )
+            if not ranking.is_file():
+                raise FileNotFoundError(ranking)
+            paths_updates[f"{self.in_stage}.uarch_ranking_csv"] = ranking
+        if not self.others and not self.per_instr and not self.perf_sim:
             assert len(compare_df) == 2
             cols = ["Run Instructions (rel.)", "ROM code (rel.)"]
             for col in cols:
                 metrics_updates[f"{self.in_stage}.compare{suffix}.{col}"] = compare_df[col].iloc[1]
         return views_updates, metrics_updates, paths_updates
+
+
+@GenIEStep.factory.register()
+class CompareISEPerfSimBench(CompareISEBench):
+    """Merge instruction/cycle/memory reports and rank measured microarchitectures."""
+    id = "ISAAC.CompareISEPerfSimBench"
+    perf_sim = True
 
 
 # @GenIEStep.factory.register()
@@ -1107,20 +1314,22 @@ class FilterCandidates(ISAACStep):
         Variable(
             "FILTER_MIN_SEAL5_SCORE",
             Optional[float],
-            "TODO.",
+            "Minimum compiler support score; null disables this threshold.",
             default=0.5,
+            deprecated_names=["MIN_SEAL5_SCORE"],
         ),
         Variable(
             "FILTER_MIN_RUNTIME_REDUCTION_REL",
             Optional[float],
-            "TODO.",
+            "Minimum measured runtime reduction; null disables this threshold.",
             default=0.005,
         ),
         Variable(
             "FILTER_MIN_UTIL_REL",
             Optional[float],
-            "TODO.",
+            "Minimum utilization score for subsequent filtering; null disables this threshold.",
             default=0.005,
+            deprecated_names=["MIN_UTIL_SCORE"],
         ),
     ]
     in_stage = "initial"
@@ -1142,15 +1351,22 @@ class FilterCandidates(ISAACStep):
         out_dir = work_dir / self.out_stage
         out_dir.mkdir(parents=True, exist_ok=True)
         out_index = out_dir / "index.yml"
-        extra_args = [index_file, "-o", out_index]
+        if self.in_stage == self.out_stage:
+            raise ValueError("Filtering requires a distinct output stage")
+        if self.in_stage not in ("initial", "filtered", "filtered_selected"):
+            raise ValueError(f"Unsupported filtering stage: {self.in_stage}")
+        sankey = out_dir / "sankey.md"
+        extra_args = [index_file, "-o", out_index, "--sankey", sankey]
         config = self.config
-        if self.in_stage == "initial":
-            extra_args += [
-                "--min-seal5-score",
-                str(config["FILTER_MIN_SEAL5_SCORE"]),
-                "--min-runtime-reduction-rel",
-                str(config["FILTER_MIN_RUNTIME_REDUCTION_REL"]),
-            ]
+        thresholds = (
+            [("--min-seal5-score", "FILTER_MIN_SEAL5_SCORE"),
+             ("--min-runtime-reduction-rel", "FILTER_MIN_RUNTIME_REDUCTION_REL")]
+            if self.in_stage == "initial" else [("--min-util-score", "FILTER_MIN_UTIL_REL")]
+        )
+        for option, key in thresholds:
+            value = config[key]
+            if value is not None:
+                extra_args += [option, str(value)]
         self.run_isaac_toolkit(
             ["isaac_toolkit.utils.filter_index", *extra_args],
             scripts_dir=scripts_dir,
@@ -1169,6 +1385,10 @@ class FilterCandidates(ISAACStep):
         assert out_index.is_file(), f"Missing file: {out_index}"
         paths_updates[f"{self.out_stage}.index"] = out_index
         paths_updates[f"{self.out_stage}.workdir"] = out_dir
+        paths_updates[f"{self.out_stage}.names_csv"] = names_csv
+        if not sankey.is_file():
+            raise FileNotFoundError(sankey)
+        paths_updates[f"{self.out_stage}.sankey"] = sankey
         assert names_csv.is_file(), f"Missing file: {names_csv}"
         names_df = pd.read_csv(names_csv)
         print("names_df", names_df)
@@ -1177,50 +1397,41 @@ class FilterCandidates(ISAACStep):
         filtered_candidates = prev_candidates - num_candidates
         assert num_candidates > 0, "No candidates found. Aborting..."
         metrics_updates[f"{self.out_stage}.num_candidates"] = num_candidates
-        metrics_updates[f"{self.out_stage}.filteted_candidates"] = filtered_candidates
+        metrics_updates[f"{self.out_stage}.filtered_candidates"] = filtered_candidates
         return views_updates, metrics_updates, paths_updates
 
 
 @GenIEStep.factory.register()
-class CreateSpecGraph(GenIEStep):
-    """
-    TODO.
-    """
+class CreateSpecGraph(ISAACStep):
+    """Detect candidate specializations for a particular candidate stage."""
 
     id = "ISAAC.CreateSpecGraph"
     name = "Create Spec Graph"
     long_name = "Create Specialization Graph"
     inputs = []
     outputs = []
-
-    config_vars = [
-        # Variable(
-        #     "VERILOG_FILES",
-        #     List[Path],
-        #     "The paths of the design's Verilog files.",
-        # ),
-    ]
+    config_vars = ISAACStep.config_vars
+    in_stage = "filtered"
 
     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate, PathsUpdate]:
         kwargs, env = self.extract_env(kwargs)
-        views_updates: ViewsUpdate = {}
-        metrics_updates: MetricsUpdate = {}
-        paths_updates: PathsUpdate = {}
-        config = self.config
-        demo_dir = pathlib.Path(state_in.paths["demo.dir"])
-        scripts_dir = demo_dir / "scripts"
-        sess_dir = self.run_dir
-        assert scripts_dir is not None
-        launch_script = scripts_dir / "launch.sh"
-        assert launch_script.is_file(), f"Missing file: {launch_script}"
-        python_exe = "python3"  # TODO
-        command = [launch_script, python_exe, "-m", "mlonmcu.cli.main"]
-        check = True
-        args = []
-        _ = self.run_subprocess(
-            args,
+        index_file = pathlib.Path(state_in.paths[f"{self.in_stage}.index"])
+        if not index_file.is_file():
+            raise FileNotFoundError(index_file)
+        work_dir = pathlib.Path(state_in.paths[f"{self.in_stage}.workdir"])
+        graph_file = work_dir / "spec_graph.pkl"
+        self.run_isaac_toolkit(
+            ["tool.detect_specializations", index_file, "--graph", graph_file, "--noop"],
+            scripts_dir=pathlib.Path(state_in.paths["demo.dir"]) / "scripts",
             env=env,
-            check=check,
-            **kwargs,
         )
-        return views_updates, metrics_updates, paths_updates
+        if not graph_file.is_file():
+            raise FileNotFoundError(graph_file)
+        return {}, {}, {f"{self.in_stage}.spec_graph": graph_file}
+
+
+@GenIEStep.factory.register()
+class RetargetPerfSim(RetargetISS):
+    id = "ISAAC.RetargetPerfSim"
+    name = long_name = "Retarget Performance Simulator"
+    perf_sim = True

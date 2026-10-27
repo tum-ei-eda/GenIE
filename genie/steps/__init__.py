@@ -36,3 +36,8 @@ from . import mlonmcu as MLonMCU
 from . import isaac as ISAAC
 from . import ci as CI
 from . import docker as Docker
+
+from . import candidates as Candidates
+from . import hardware as Hardware
+from . import evaluation as Evaluation
+from . import reports as Reports

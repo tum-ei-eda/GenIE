@@ -24,3 +24,5 @@ from .default import DefaultGenIEFlow
 from .demo import Demo
 from . import builtins
 from .cli import cloup_flow_opts
+
+from .evaluation import ISSEvaluationFlow, HardwareSelectionFlow

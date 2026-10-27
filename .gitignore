@@ -11,6 +11,7 @@ __pycache__
 .mypy_cache/
 build/
 /venv
+/docs/_build/
 *.egg-info/
 dist/
 requirements.frz.txt
@@ -44,3 +45,6 @@ sandbox/
 node_modules/
 yarn.lock
 package.jso
+
+# Runs launched from the monitor web app
+.genie-web-runs/

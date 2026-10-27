@@ -1,15 +1,15 @@
-## Memgraph Setup
+# Memgraph Setup
 
-### Setup Instructions
+## Setup Instructions
 
-#### Running Memgraph Locally
-
-TODO
-
-#### Running Memgraph in Docker
+### Running Memgraph Locally
 
 TODO
 
-#### Using Remote-Memgraph Instance
+### Running Memgraph in Docker
+
+TODO
+
+### Using Remote-Memgraph Instance
 
 TODO

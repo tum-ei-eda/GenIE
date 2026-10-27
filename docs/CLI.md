@@ -1,8 +1,8 @@
-## GenIE Command Line Interface
+# GenIE Command Line Interface
 
 See `genie --help` for full details.
 
-### Examples flags
+## Examples flags
 
 Here are some relevant arguments:
 
