@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Package and configuration (Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.12', '3.14']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install package and test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes swig
+          python -m pip install --upgrade pip
+          python -m pip install . build twine pytest 'pyfakefs>=5.2.3,<7'
+          python -m pip check
+      - name: Check Python syntax
+        run: python -m compileall -q genie examples scripts
+      - name: Configuration tests
+        run: python -m pytest test/config -ra --junitxml=test-results/config.xml
+      - name: Smoke-test installed CLI
+        run: |
+          genie --help
+          genie.config --help
+          genie.state --help
+          python -m genie.prototype --list
+      - name: Build and validate distributions
+        run: |
+          python -m build
+          python -m twine check dist/*
+      - name: Upload package and test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: package-python-${{ matrix.python }}
+          path: |
+            dist/
+            test-results/

@@ -1,0 +1,71 @@
+name: Migration tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migration:
+    name: Prototype parity (Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.12', '3.14']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check out audited prototype
+        uses: actions/checkout@v7
+        with:
+          repository: PhilippvK/isaac-demo
+          ref: fb3acb1ddcb3af2903837cb45ddba19b289ed5a7
+          path: reference/isaac-demo
+          persist-credentials: false
+      - name: Check out audited toolkit
+        uses: actions/checkout@v7
+        with:
+          repository: tum-ei-eda/isaac-toolkit
+          ref: b288f41d390316650003653080bdfb3d2cad270a
+          path: reference/isaac-toolkit
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install package and test tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes zstd swig
+          python -m venv .venv
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install . pytest 'pyfakefs>=5.2.3,<7'
+          python -m pip check
+      - name: Run migration tests with real toolkit utilities
+        env:
+          GENIE_TOOLKIT_SRC: ${{ github.workspace }}/reference/isaac-toolkit
+          GENIE_DEMO_SRC: ${{ github.workspace }}/reference/isaac-demo
+        run: |
+          python -m pytest test/steps test/integration -ra --junitxml=test-results/migration.xml
+          python .github/scripts/check_test_results.py test-results/migration.xml
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: migration-python-${{ matrix.python }}
+          path: test-results/

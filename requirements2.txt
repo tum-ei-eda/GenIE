@@ -1,0 +1,7 @@
+gitpython
+docker
+openlane @ git+https://github.com/PhilippvK/openlane2@genie
+m2isar @ git+https://github.com/PhilippvK/M2-ISA-R@051d3354811e94f6ed61f4fdc54188370884e828
+isaac-toolkit @ git+https://github.com/tum-ei-eda/isaac-toolkit@isaac-demo-newer-nov
+mlonmcu @ git+https://github.com/tum-ei-eda/mlonmcu@isaac-demo-rebased
+seal5 @ git+https://github.com/tum-ei-eda/seal5@future-paper-4

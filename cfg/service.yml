@@ -1,0 +1,21 @@
+---
+# Service worker configuration and endpoint must match your installation.
+USE_SEAL5_SERVICE: true
+USE_ETISS_SERVICE: true
+USE_SEAL5_DOCKER: false
+USE_ETISS_DOCKER: false
+SERVICE_URL: http://localhost:8080
+SERVICE_TIMEOUT: 3600.0
+SERVICE_POLL_INTERVAL: 5.0
+# Pin host CoreDSL imports; legacy unbundled jobs require an explicit false.
+SERVICE_BUNDLE_COREDSL: true
+SEAL5_SERVICE_TAG: llvm
+ETISS_SERVICE_TAG: etiss
+USE_ETISS_PERF_SERVICE: false
+ETISS_PERF_SERVICE_TAG: etiss_perf
+# Optional: execute downloaded simulators with the worker's runtime libraries.
+# Pin the worker image ID/digest for reproducible execution.
+# ETISS_SERVICE_RUNTIME_IMAGE: sha256:...
+# Enable USE_ETISS_PERF_SERVICE for a PerfSim stage with saved HLS outputs.
+# Supply a Seal5 YAML file whose patches/tools exist inside the worker:
+# SEAL5_SERVICE_CONFIG: /path/to/worker-compatible.yaml

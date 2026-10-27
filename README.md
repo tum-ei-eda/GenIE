@@ -26,3 +26,8 @@ The HLS tool used in the paper is currently not available at this point in time.
 
 This research is partially funded by the German Federal Ministry of Education and Research (BMBF) within
 the projects [Scale4Edge](https://www.edacentrum.de/scale4edge/) (grant number 16ME0465) and [MANNHEIM-FlexKI](https://www.edacentrum.de/projekte/MANNHEIM-FlexKI) (grant number 01IS22086L).
+
+## Flow web monitor
+
+Launch experiments from a browser form or the CLI, then inspect stages, live
+logs, and metrics in the same lightweight web app. See [the monitor guide](docs/monitor.md) for startup and remote access.
