@@ -1,6 +1,6 @@
-## GenIE Modes
+# GenIE Modes
 
-### Local (`local`)
+## Local (`local`)
 
 Install via: `pip install "genie[local]"`
 
@@ -13,7 +13,7 @@ Run with: `genie cfg/local.yml ...`
 - Needs externally managed Memgraph DB Server (see [`MEMGRAPH.md`](./MEMGRAPH.md))
 
 
-### Default (`default`)
+## Default (`default`)
 
 Install via: `pip install "genie[default]"`
 
@@ -25,7 +25,7 @@ Run with: `genie cfg/default.yml ...`
 - Retargeting jobs are executed locally
 - Needs externally managed Memgraph DB Server (see [`MEMGRAPH.md`](./MEMGRAPH.md))
 
-### Docker (`docker`)
+## Docker (`docker`)
 
 Install via: `pip install "genie[docker]"`
 
@@ -37,7 +37,7 @@ Run with: `genie cfg/docker.yml ...`
 - Retargeting jobs are executed in temporary docker containers (see [`DOCKER.md`](./DOCKER.md))
 - Needs externally managed Memgraph DB Server (see [`MEMGRAPH.md`](./MEMGRAPH.md))
 
-### Service (`service`)
+## Service (`service`)
 
 Use `cfg/service.yml` for LLVM/ETISS retargeting through an external job API.
 Set `SERVICE_URL` and `SEAL5_SERVICE_CONFIG` for your workers. The adapter has
@@ -45,7 +45,7 @@ transport/artifact tests and real single-set LLVM/ETISS workload validation.
 PerfSim service execution uses a separate opt-in switch and saved HLS outputs.
 See [SERVICE.md](SERVICE.md).
 
-### Dockerized (`dockerized`)
+## Dockerized (`dockerized`)
 
 Install via: `pip install "genie[dockerized]"`
 
@@ -57,7 +57,7 @@ Run with: `genie --dockerized cfg/dockerized.yml ...`
 - Retargeting jobs executed within the container (see [`DOCKER.md`](./DOCKER.md))
 - Needs externally managed Memgraph DB Server (see [`MEMGRAPH.md`](./MEMGRAPH.md))
 
-### Custom (`custom`)
+## Custom (`custom`)
 
 Add your own modes, i.e. by modifying `cfg/custom.yml` to run hybrid local/docker jobs.
 

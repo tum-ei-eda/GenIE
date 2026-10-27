@@ -1,10 +1,10 @@
-## GenIE Outputs
+# GenIE Outputs
 
-### Base directory
+## Base directory
 
 Use `-c DESIGN_DIR=$(pwd)/path/to/out` on the `genie` command line to configure the base directory for all generated outputs and temporary files.
 
-### Directory structure
+## Directory structure
 
 Relative to `DESIGN_DIR`, GenIE will emit one directory for each "Run" containing the timestamp when the run was started:
 
@@ -16,7 +16,7 @@ runs/
   ...
 ```
 
-### Run artifacts
+## Run artifacts
 
 For each run directory the strcuture is as follows:
 
@@ -46,7 +46,7 @@ RUN_2025-12-04_12-22-00/
   resolved.json
 ```
 
-### Step files
+## Step files
 
 For each step (see [`STEPS.md`](./STEPS.md)), the following files can be emitted
 

@@ -1,46 +1,46 @@
-## GenIE Flows
+# GenIE Flows
 
 GenIE uses Python-class defined Flows inspired by the OpenLane2 (now LibreLane) project.
 
-### Selecting a flow
+## Selecting a flow
 
-#### Via configuration files
+### Via configuration files
 
 TODO: check meta?
 
 See [`CONFIG.md`](./CONFIG.md) for details!
 
-#### On the command line
+### On the command line
 
 ```sh
 genie ... --flow DefaultGenIEFlow
 ```
 
-### Available Flows
+## Available Flows
 
-#### Default Flow (`DefaultGenIEFlow`)
+### Default Flow (`DefaultGenIEFlow`)
 
 To be renamed to `ISSGenIEFlow`...
 
 **Usage:** Add `--flow DefaultGenIEFlow` to `genie` command.
 
-#### RTL Flow (`RTLGenIEFlow`)
+### RTL Flow (`RTLGenIEFlow`)
 
 **Usage:** Add `--flow RTLGenIEFlow` to `genie` command.
 
 **Details:**
 - Same as default but using RTL simulations instead of ISS
 
-#### PerfSim Flow (`PerfSimGenIEFlow`)
+### PerfSim Flow (`PerfSimGenIEFlow`)
 
 **Usage:** Add `--flow PerfSimGenIEFlow` to `genie` command.
 
 **Details:**
 - Same as default but using PerfSim instead of ISS
 
-### Custom Flows
+## Custom Flows
 
-#### Via Python
+### Via Python
 
 Custom flows can be defined and registered within GenIE as follows:
 
@@ -61,10 +61,10 @@ class CustomGenIEFlow(DefaultGenIEFlow):
     }
 ```
 
-#### Via Config files
+### Via Config files
 
 Simple substitutions can also be defined as follows: TODO
-### Extended evaluation flows
+## Extended evaluation flows
 
 `ISSEvaluationFlow` adds encoding/compiler score annotation, combined and
 per-instruction benchmarks, custom tracing/reanalysis, diffs, utilization scores,

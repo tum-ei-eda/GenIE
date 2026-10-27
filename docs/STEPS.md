@@ -1,6 +1,6 @@
-## GenIE Steps
+# GenIE Steps
 
-### Step Annotations
+## Step Annotations
 
 There can be multiple instances of one step (to allow running it more than one with different options).
 
@@ -12,7 +12,7 @@ annotate(ISAAC.RetargetLLVM, splitted=False),
 
 When referencing the step on the command line use the following name: `ISAAC.RetargetLLVM(splitted=False)`
 
-### Registered steps
+## Registered steps
 
 The following IDs are registered by `genie.steps`. Registration alone does not
 prove that external tool execution is available; see [MIGRATION.md](MIGRATION.md)

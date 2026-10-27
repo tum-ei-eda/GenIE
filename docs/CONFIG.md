@@ -1,8 +1,8 @@
-## GenIE Configuration
+# GenIE Configuration
 
-### How to configure GenIE?
+## How to configure GenIE?
 
-#### Via YAML files
+### Via YAML files
 
 Just pass the config file paths as additional arguments. The if variables are defined in multiple different files, the value of the last specified one is used.
 
@@ -13,7 +13,7 @@ genie ... cfg/default.yml cfg/mode.yml  # Multiple config files
 
 *Warning:* Never run GenIE without any config files (can lead to inconsistencies)!
 
-#### Via Command Line Arguments
+### Via Command Line Arguments
 
 You may override any config options on the command line as follows.
 
@@ -21,7 +21,7 @@ You may override any config options on the command line as follows.
 genie ... -c FOO=bar -c FOO2=baz
 ```
 
-### Available config files
+## Available config files
 
 ```sh
 # Defaults (TODO: load automatically)
@@ -38,9 +38,11 @@ cfg/custom.yml
 cfg/cva5_reuseio.yml
 ```
 
-### Example Config
+## Example Config
 
-See [`cfg/defaults.yml`](cfg/defaults.yml) for full (up-to-date) example!
+See [`cfg/cva5_reuseio.yml`](../cfg/cva5_reuseio.yml) for a maintained target
+configuration. The generated [configuration reference](../reference/configuration.md)
+and [step reference](../reference/steps.md) list current options and defaults.
 
 ```yaml
 ---

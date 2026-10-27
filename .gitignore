@@ -11,6 +11,7 @@ __pycache__
 .mypy_cache/
 build/
 /venv
+/docs/_build/
 *.egg-info/
 dist/
 requirements.frz.txt

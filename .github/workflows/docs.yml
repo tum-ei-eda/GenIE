@@ -1,0 +1,70 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main, refactor2]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build documentation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            docs/requirements.txt
+      - name: Install GenIE and documentation tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install . -r docs/requirements.txt
+          python -m pip check
+      - name: Build guides and generated reference
+        env:
+          GENIE_DOCS_REF: ${{ github.head_ref || github.ref_name }}
+        run: python scripts/build_docs.py
+      - name: Upload preview
+        uses: actions/upload-artifact@v7
+        with:
+          name: documentation-html
+          path: docs/_build/html/
+          if-no-files-found: error
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs/_build/html/
+
+  deploy:
+    name: Publish GitHub Pages
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Deploy documentation
+        id: deployment
+        uses: actions/deploy-pages@v4

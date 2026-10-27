@@ -1,4 +1,4 @@
-## GenIE Retargeting Service
+# GenIE Retargeting Service
 
 GenIE can submit LLVM and ETISS retargeting jobs to an externally hosted service.
 Both were built and evaluated together on CRC32 with five custom instructions.
@@ -8,7 +8,7 @@ unverified; see the [migration gap](MIGRATION.md#retargeting-service-gap).
 
 Check https://github.com/PhilippvK/isaac-docker-service for details.
 
-### Using Retargeting Service in GenIE
+## Using Retargeting Service in GenIE
 
 Add `cfg/service.yml` after your benchmark configuration and set `SERVICE_URL`.
 For LLVM, set `SEAL5_SERVICE_CONFIG` to a worker-compatible YAML file. Relative
@@ -27,7 +27,7 @@ rejected to match the worker's input contract. The available worker requires
 Extraction requires `zstd` and a Python build with `tarfile.data_filter` (including
 maintained Python 3.10 versions with the extraction-filter backport).
 
-### Configuring Retargeting Service
+## Configuring Retargeting Service
 
 The transport in `genie.retargeting_service` implements the job API inspected in
 the local `isaac-docker-service` source. It submits multipart `tag`, `cdsl`,
