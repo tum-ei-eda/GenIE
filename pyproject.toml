@@ -18,7 +18,12 @@ pyyaml = ">=5,<7"
 rich = ">=12,<14"
 lxml = ">=4.9.0"
 deprecated = ">=1.2.10,<2"
-libparse = ">=0.3.1,<1"
+# The 0.3.1 sdist omits its Makefile; use the complete source on Python
+# versions without published wheels (including the pinned Yosys submodule).
+libparse = [
+    { version = ">=0.3.1,<1", python = "<3.14" },
+    { git = "https://github.com/efabless/libparse-python", rev = "cec8b6dfd3d1c97bc5ccd1d0a41c44e51bc9c1eb", python = ">=3.14" },
+]
 psutil = ">=5.9.0"
 httpx = ">=0.22.0,<0.29"
 yamlcore = "^0.0.2"

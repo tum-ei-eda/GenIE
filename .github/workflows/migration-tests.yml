@@ -49,7 +49,10 @@ jobs:
       - name: Install package and test tools
         run: |
           sudo apt-get update
-          sudo apt-get install --yes zstd
+          sudo apt-get install --yes zstd swig
+          python -m venv .venv
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+          source .venv/bin/activate
           python -m pip install --upgrade pip
           python -m pip install . pytest 'pyfakefs>=5.2.3,<7'
           python -m pip check

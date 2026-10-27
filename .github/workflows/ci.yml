@@ -32,6 +32,8 @@ jobs:
           cache-dependency-path: pyproject.toml
       - name: Install package and test tools
         run: |
+          sudo apt-get update
+          sudo apt-get install --yes swig
           python -m pip install --upgrade pip
           python -m pip install . build twine pytest 'pyfakefs>=5.2.3,<7'
           python -m pip check
