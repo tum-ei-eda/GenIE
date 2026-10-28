@@ -1,4 +1,10 @@
 # GenIE
+
+<img src="docs/_static/genie-logo.png" alt="GenIE logo" width="360">
+
+> **Logo attribution:** The GenIE logo was created with the assistance of
+> generative AI.
+
 Code for NorCAS Paper: GenIE: Reuse-Oriented Generation of Domain-Specific Instruction Extensions
 
 ## Information on open-source release

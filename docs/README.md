@@ -2,6 +2,13 @@
 
 See [development setup](SETUP.md) and [migration progress](../PROGRESS.md).
 
+## Logo attribution
+
+![GenIE logo](./_static/genie-logo.png)
+
+The GenIE logo was created with the assistance of generative AI. The browser
+favicon is derived from the circuit symbol in the logo.
+
 ## Index
 
 - [`CLI.md`](./CLI.md): Command Line Interface

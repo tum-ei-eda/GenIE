@@ -3,6 +3,8 @@
 GenIE orchestrates instruction-set extension discovery, compiler and simulator
 retargeting, candidate evaluation, and hardware-aware selection.
 
+![GenIE logo](docs/_static/genie-logo.png)
+
 Start with the [setup guide](docs/SETUP.md) and [usage examples](docs/USAGE.md).
 The [migration status](docs/MIGRATION.md) records validation limits.
 

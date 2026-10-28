@@ -9,6 +9,9 @@ root_doc = "index"
 exclude_patterns = ["docs/index.md"]
 html_theme = "furo"
 html_title = "GenIE Documentation"
+html_logo = "docs/_static/genie-logo.png"
+html_favicon = "docs/_static/favicon.ico"
+html_static_path = ["docs/_static"]
 html_baseurl = "https://tum-ei-eda.github.io/GenIE/"
 html_theme_options = {
     "source_repository": "https://github.com/tum-ei-eda/GenIE/",
