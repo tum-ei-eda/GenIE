@@ -38,6 +38,7 @@ docs/DOCKER
 docs/MEMGRAPH
 docs/SERVICE
 docs/SERVICE_SYNC
+docs/SEAL5_PORT
 ```
 
 ```{toctree}

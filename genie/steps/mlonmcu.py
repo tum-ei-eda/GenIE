@@ -10,6 +10,7 @@ from genie.state import State
 from genie.common import Path
 from .common_vars import mlonmcu_docker_vars
 from .isaac import isaac_core_name_var
+from .iss import iss_vars, target_var, iss_target
 
 import yaml
 import pandas as pd
@@ -62,12 +63,8 @@ class MLonMCUStep(GenIEStep):
             default=False,
         ),
         # TODO: share common (target) vars
-        Variable(
-            "TARGET",
-            str,
-            "TODO.",
-            default="etiss_rv32",
-        ),
+        target_var,
+        *iss_vars,
         Variable(
             "FPU",
             str,
@@ -97,12 +94,6 @@ class MLonMCUStep(GenIEStep):
             str,
             "TODO.",
             default="llvm",
-        ),
-        Variable(
-            "TARGET",
-            str,
-            "TODO.",
-            default="etiss_rv32",
         ),
         Variable(
             "OPTIMIZE",
@@ -157,10 +148,23 @@ class MLonMCUStep(GenIEStep):
 
     perf_sim = False
 
+    def retargeted_simulator_config(self, state, target):
+        if not self.perf_sim and target.startswith("spike"):
+            from .spike import validate_plugin
+            manifest = pathlib.Path(state.paths[f"{self.in_stage}.spike.plugin_manifest"])
+            validate_plugin(manifest, self.config["ISAAC_CORE_NAME"])
+            return {"spike_plugin_manifest": manifest}
+        simulator = "etiss_perf" if self.perf_sim else "etiss"
+        install = pathlib.Path(state.paths[f"{self.in_stage}.{simulator}.install_dir"])
+        helper = install / "bin/run_helper.sh"
+        if not helper.is_file():
+            raise FileNotFoundError(helper)
+        return {"etissvp_script": helper, "etiss_cpu_arch": self.config["ISAAC_CORE_NAME"]}
+
     def get_mlonmcu_config(self):
         config = self.config
         ret = {}
-        ret["target"] = config["PERF_TARGET"] if self.perf_sim else config["TARGET"]
+        ret["target"] = config["PERF_TARGET"] if self.perf_sim else iss_target(config)
         ret["unroll"] = config["UNROLL"]
         ret["optimize"] = config["OPTIMIZE"]
         ret["arch"] = config["ARCH"]
@@ -215,11 +219,24 @@ class MLonMCUStep(GenIEStep):
         etissvp_script: Optional[Path] = None,
         etiss_cpu_arch: Optional[str] = None,
         etiss_src_dir: Optional[Path] = None,
+        spike_plugin_manifest: Optional[Path] = None,
         config_gen: Optional[List[Dict]] = None,
     ):
         ret = ["flow", stage, "--dest", dest_dir, "--label", session_label]
         ret += list(bench_name) if isinstance(bench_name, (list, tuple)) else [bench_name]
         ret += ["--target", target]
+        if target.startswith("spike"):
+            ret += ["-c", f"{target}.legacy=false"]
+            for key, option in (("SPIKE_EXE", "spike.exe"), ("SPIKE_PK", "spike.pk")):
+                if self.config.get(key):
+                    ret += ["-c", f"{option}={self.config[key]}"]
+            if spike_plugin_manifest is not None:
+                from .spike import validate_plugin
+                validate_plugin(spike_plugin_manifest)
+                ret += ["-c", f"{target}.plugin_manifest={spike_plugin_manifest}"]
+        if self.config.get("ISAAC_GNU_INSTALL_DIR"):
+            xlen = 64 if str(arch).startswith("rv64") else 32
+            ret += ["-c", f"riscv_gcc_rv{xlen}.install_dir={self.config['ISAAC_GNU_INSTALL_DIR']}"]
         if self.perf_sim:
             ret += ["-f", "perf_sim", "-c", f"perf_sim.core={self.config['PERF_UARCH']}"]
         ret += ["--backend", backend]
@@ -649,12 +666,8 @@ class ISEBench(MLonMCUStep):
         compiler_stage = "initial" if self.build_arch and self.in_stage in ("filtered", "filtered_selected") else self.in_stage
         llvm_install_dir = pathlib.Path(state_in.paths[f"{compiler_stage}.{seal5_name}.install_dir"])
         assert llvm_install_dir.is_dir(), f"Missing dir: {llvm_install_dir}"
-        simulator = "etiss_perf" if self.perf_sim else "etiss"
-        etiss_install_dir = pathlib.Path(state_in.paths[f"{self.in_stage}.{simulator}.install_dir"])
-        assert etiss_install_dir.is_dir(), f"Missing dir: {etiss_install_dir}"
-        etissvp_script = etiss_install_dir / "bin" / "run_helper.sh"
-        assert etissvp_script.is_file(), f"Missing file: {etissvp_script}"
         target = config["PERF_TARGET"] if self.perf_sim else state_in.metrics["bench.Target"]
+        simulator_overrides = self.retargeted_simulator_config(state_in, target)
         arch = state_in.metrics["bench.Arch"]
         etiss_cpu_arch = config["ISAAC_CORE_NAME"]
         if self.build_arch:
@@ -689,8 +702,7 @@ class ISEBench(MLonMCUStep):
             "compare_rows": True,
             "compare_rows_to_compare": ["Run Instructions", "Run Cycles"] if self.perf_sim else ["Run Instructions"],
             "llvm_install_dir": llvm_install_dir,
-            "etissvp_script": etissvp_script,
-            "etiss_cpu_arch": etiss_cpu_arch,
+            **simulator_overrides,
             "config_gen": config_gen,
         }
         if self.perf_sim:
@@ -832,10 +844,8 @@ class ISETrace(MLonMCUStep):
         compiler_stage = "initial" if self.build_arch and stage in ("filtered", "filtered_selected") else stage
         compiler_kind = "seal5_splitted" if self.build_arch else "seal5"
         llvm = pathlib.Path(state_in.paths[f"{compiler_stage}.{compiler_kind}.install_dir"])
-        simulator = "etiss_perf" if self.perf_sim else "etiss"
-        etiss = pathlib.Path(state_in.paths[f"{stage}.{simulator}.install_dir"])
-        helper = etiss / "bin" / "run_helper.sh"
-        for artifact in (llvm, helper):
+        simulator_overrides = self.retargeted_simulator_config(state_in, iss_target(self.config))
+        for artifact in (llvm,):
             if not artifact.exists():
                 raise FileNotFoundError(artifact)
         arch = self.config["ARCH"]
@@ -850,7 +860,7 @@ class ISETrace(MLonMCUStep):
             scripts_dir=pathlib.Path(state_in.paths["demo.dir"]) / "scripts",
             mgclient_lib_dir=pathlib.Path(state_in.paths["mgclient.lib_dir"]),
             overrides={"arch": arch, "llvm_install_dir": llvm,
-                       "etissvp_script": helper, "etiss_cpu_arch": self.config["ISAAC_CORE_NAME"],
+                       **simulator_overrides,
                        **({"etiss_src_dir": pathlib.Path(state_in.paths[f"{stage}.etiss_perf.src_dir"])}
                           if self.perf_sim else {}),
                        "log_instrs": True, "llvm_basic_block_sections": True},

@@ -8,6 +8,9 @@ from genie.config import Variable
 from genie.state import State
 from genie.common import Path
 
+seal5_source_var = Variable("SEAL5_SRC_DIR", Optional[Path],
+                           "Existing Seal5 tree with the ISAAC port applied.", default=None)
+
 mlonmcu_docker_vars = [
     Variable(
         "USE_MLONMCU_DOCKER",

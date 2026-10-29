@@ -31,14 +31,14 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: PhilippvK/isaac-demo
-          ref: fb3acb1ddcb3af2903837cb45ddba19b289ed5a7
+          ref: be593a037cfd17cf3280d82410bab306c56e42ae
           path: reference/isaac-demo
           persist-credentials: false
       - name: Check out audited toolkit
         uses: actions/checkout@v7
         with:
           repository: tum-ei-eda/isaac-toolkit
-          ref: b288f41d390316650003653080bdfb3d2cad270a
+          ref: 43fae872a999e9bbbe491e9f173ad7aca8c070a4
           path: reference/isaac-toolkit
           persist-credentials: false
       - uses: actions/setup-python@v7
@@ -46,6 +46,37 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: pyproject.toml
+      - name: Check out typed M2-ISA-R
+        uses: actions/checkout@v7
+        with:
+          repository: tum-ei-eda/M2-ISA-R
+          ref: 59ba470011fafe5e814a2b9ca9504d8175fe25cc
+          path: reference/M2-ISA-R
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check out Seal5 typed-parser main
+        uses: actions/checkout@v7
+        with:
+          repository: tum-ei-eda/seal5
+          ref: b8d5e0932f68547b802fd53b7f4b75ed44a0daf1
+          path: reference/seal5
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check out pinned CoreDSL definitions
+        uses: actions/checkout@v7
+        with:
+          repository: tum-ei-eda/etiss_arch_riscv
+          ref: 45e3067fcaac9e1cd79c4a008fa570c60055af92
+          path: reference/isaac-demo/etiss_arch_riscv
+          submodules: recursive
+          persist-credentials: false
+      - name: Check out candidate tree support
+        uses: actions/checkout@v7
+        with:
+          repository: PhilippvK/memgraph_experiments
+          ref: 0e5dd5f97e948ca68a4092c30095d3952875d6d5
+          path: reference/memgraph_experiments
+          persist-credentials: false
       - name: Install package and test tools
         run: |
           sudo apt-get update
@@ -55,11 +86,13 @@ jobs:
           source .venv/bin/activate
           python -m pip install --upgrade pip
           python -m pip install . pytest 'pyfakefs>=5.2.3,<7'
+          python -m pip install ./reference/M2-ISA-R ./reference/seal5 anytree dacite
           python -m pip check
       - name: Run migration tests with real toolkit utilities
         env:
-          GENIE_TOOLKIT_SRC: ${{ github.workspace }}/reference/isaac-toolkit
+          GENIE_TOOLKIT_SRC: ${{ github.workspace }}/reference/isaac-toolkit:${{ github.workspace }}/reference/M2-ISA-R:${{ github.workspace }}/reference/memgraph_experiments
           GENIE_DEMO_SRC: ${{ github.workspace }}/reference/isaac-demo
+          PYTHONPATH: ${{ github.workspace }}/reference/isaac-toolkit:${{ github.workspace }}/reference/M2-ISA-R:${{ github.workspace }}/reference/memgraph_experiments
         run: |
           python -m pytest test/steps test/integration -ra --junitxml=test-results/migration.xml
           python .github/scripts/check_test_results.py test-results/migration.xml

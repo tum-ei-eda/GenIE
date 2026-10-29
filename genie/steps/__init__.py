@@ -41,3 +41,5 @@ from . import candidates as Candidates
 from . import hardware as Hardware
 from . import evaluation as Evaluation
 from . import reports as Reports
+from . import spike as Spike
+from . import cfu as CFU

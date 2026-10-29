@@ -10,7 +10,7 @@ import sys
 
 from .flows import GenIEFlow, SequentialGenIEFlow
 from .flows.default import annotate
-from .steps import ISAAC, MLonMCU, Candidates, Hardware, Evaluation, Reports, Misc, CI
+from .steps import ISAAC, MLonMCU, Candidates, Hardware, Evaluation, Reports, Misc, CI, Spike, CFU
 
 PROTOTYPE_STEPS = {
     "flow_assign_compare.sh": [Candidates.AssignComparisonMetrics],
@@ -25,6 +25,8 @@ PROTOTYPE_STEPS = {
     "flow_bench.sh": [MLonMCU.Bench],
     "flow_bench_perf.sh": [MLonMCU.PerfSimBench],
     "flow_cleanup.sh": [Misc.CleanupTempFiles],
+    "flow_cfu.sh": [CFU.Evaluate],
+    "flow_cfu_discover.sh": [CFU.DiscoveryBench, CFU.DiscoveryTrace],
     "flow_compare.sh": [MLonMCU.ISEBench, ISAAC.CompareISEBench],
     "flow_compare_others.sh": [annotate(MLonMCU.ISEBench, others=True), annotate(ISAAC.CompareISEBench, others=True)],
     "flow_compare_per_instr.sh": [annotate(MLonMCU.ISEBench, per_instr=True), annotate(ISAAC.CompareISEBench, per_instr=True)],
@@ -54,6 +56,7 @@ PROTOTYPE_STEPS = {
     "flow_select_new.sh": [Candidates.SelectCandidates],
     "flow_sort.sh": [Candidates.SortCandidates],
     "flow_spec.sh": [ISAAC.CreateSpecGraph],
+    "flow_spike.sh": [Spike.RetargetSpike],
     "flow_syn.sh": [Hardware.RunASIPSynthesis, Hardware.RunFPGASynthesis],
     "flow_trace.sh": [MLonMCU.Trace],
     "flow_trace_perf.sh": [MLonMCU.PerfSimTrace],

@@ -22,6 +22,7 @@ service_vars = [
     Variable("SEAL5_SERVICE_TAG", str, "LLVM worker tag.", default="llvm"),
     Variable("ETISS_SERVICE_TAG", str, "ETISS worker tag.", default="etiss"),
     Variable("ETISS_PERF_SERVICE_TAG", str, "PerfSim worker tag.", default="etiss_perf"),
+    Variable("SPIKE_SERVICE_TAG", str, "Spike plugin worker tag.", default="spike"),
     Variable("ETISS_SERVICE_RUNTIME_IMAGE", str, "Optional compatible image for downloaded simulator execution.", default=""),
     Variable("SERVICE_BUNDLE_COREDSL", bool, "Inline local CoreDSL imports for service source parity.", default=True),
     Variable("SERVICE_KEEP_ARCHIVE", bool, "Retain the downloaded transfer archive after successful validation.", default=False),
@@ -147,20 +148,22 @@ def package_hls(source, archive):
     return archive
 
 
-def retarget_service(step, state, *, compiler=False):
+def retarget_service(step, state, *, compiler=False, backend="etiss"):
     from .isaac import record_global_artifacts
     import shutil
     import tarfile
 
     config, stage = step.config, step.in_stage
     perf_sim = not compiler and step.perf_sim
+    if backend not in ("etiss", "spike") or (backend == "spike" and (compiler or perf_sim)):
+        raise ValueError("Unsupported retargeting service backend combination")
     if config["SERVICE_TIMEOUT"] <= 0 or config["SERVICE_POLL_INTERVAL"] <= 0:
         raise ValueError("Service timeout and poll interval must be positive")
     if not shutil.which("zstd") or not hasattr(tarfile, "data_filter"):
         raise RuntimeError("Service extraction requires zstd and Python with tarfile.data_filter")
     gen = Path(state.paths[f"{stage}.gen_dir"])
     index = Path(state.paths[f"{stage}.index"])
-    name = "seal5_splitted" if compiler and step.splitted else "seal5" if compiler else "etiss_perf" if perf_sim else "etiss"
+    name = "seal5_splitted" if compiler and step.splitted else "seal5" if compiler else "etiss_perf" if perf_sim else backend
     if compiler:
         sets = [part.strip() for part in config["ISAAC_SET_NAME"].split(";")]
         if not all(sets):
@@ -201,7 +204,8 @@ def retarget_service(step, state, *, compiler=False):
         cdsl = inputs / cdsl.name
         cdsl.write_text(bundled)
         (inputs / "description_sources.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    tag = config["SEAL5_SERVICE_TAG" if compiler else "ETISS_PERF_SERVICE_TAG" if perf_sim else "ETISS_SERVICE_TAG"]
+    tag = config["SEAL5_SERVICE_TAG" if compiler else "ETISS_PERF_SERVICE_TAG" if perf_sim else
+                 "SPIKE_SERVICE_TAG" if backend == "spike" else "ETISS_SERVICE_TAG"]
     uploads = {}
     if perf_sim:
         hls_output = state.paths.get(f"{stage}.hls.default.output_dir")
@@ -256,6 +260,14 @@ def retarget_service(step, state, *, compiler=False):
         if not destination.exists():
             archive = service.download_artifact(job, inputs / "artifact.tar.zst")
             extract_artifact(archive, destination)
+    if backend == "spike":
+        from .spike import validate_plugin
+        manifest = destination / "spike" / "spike_plugin.json"
+        validate_plugin(manifest, config["ISAAC_CORE_NAME"])
+        record_global_artifacts(index, SPIKE_PLUGIN_MANIFEST=manifest)
+        if not config["SERVICE_KEEP_ARCHIVE"]:
+            (inputs / "artifact.tar.zst").unlink(missing_ok=True)
+        return {}, {}, {f"{stage}.spike.plugin_manifest": manifest}
     install = destination / ("llvm_install" if compiler else f"{name}_install")
     executable = install / "bin" / ("clang" if compiler else "run_helper.sh")
     if not executable.is_file():

@@ -1,9 +1,32 @@
 # GenIE migration progress
 
-## Current status
+## Source refresh after upstream merges (2026-10-29)
 
-- Python phase entry points cover all **44 active prototype flow scripts**; complete switch/stage parity is still under review.
-- **142 tests pass** with the real reference toolkit enabled. Setup and migration instructions are in `docs/SETUP.md` and `docs/MIGRATION.md`.
+Fetched demo `5b9a533` and all recursive submodules. Removed the now-upstream
+Seal5 and M2-ISA-R patches and the legacy marker migration. Prepared a marker-free
+LLVM baseline (`1d0af5ca8`), added generic custom-file lookup in Seal5 and moved the ISAAC marker patch into the demo (`b8d5e09`),
+and updated both demo gitlinks (`be593a0`). Service cleanup is `c08a90a`.
+Patch application and unique-marker inspection pass. No new suite runs or image
+builds were performed; updated published images are awaited. See
+`docs/SEAL5_PORT.md` for directories, publication order and the tag update.
+
+## Previous ISAAC demo validation (2026-10-29)
+
+- Audited demo main: `73a42f3208fe6c9d72e174e8b82101606b89d163`; source pins and provenance are maintained in `genie/upstream.py`.
+- Updated typed M2-ISA-R/toolkit/MLonMCU integration, Spike flows/plugin handling, CFU discovery/evaluation and the current retargeting job API.
+- The ISAAC Seal5 port is merged upstream. GenIE pins main `35066e4b` with a small generated RISC-V extension-test fix.
+- Final migration suite: **149 passed, zero failures/errors/skips**, `/tmp/genie-alignment-final-tests.xml`.
+- Full isolated LLVM worker pipeline passed, including both C++ builds, all three generated tests, installation, deployment/export and reports. The installed compiler's fused instruction executed correctly in native Spike.
+- GenIE CFU evaluation passed a 64-vector fused-operation fixture on Verilator. Baseline: **1,216 cycles/591 instructions**; extended: **1,217 cycles/527 instructions**. Baseline/extended encoding audits passed; this is correctness evidence without a cycle speedup claim.
+- Strict docs and wheel builds passed. Current evidence and bounded validation scope: `docs/MIGRATION.md` and `docs/SEAL5_PORT.md`.
+- Repository directories, branch tips and push remotes are listed in `docs/SEAL5_PORT.md`. No pushes or live worker rebuilds/restarts were performed. The operator will rebuild/deploy service images.
+
+The older migration scope and chronological evidence below are retained as history; outstanding physical hardware checks are identified separately.
+
+## Earlier migration status
+
+- Python phase entry points cover all **47 active prototype flow scripts**; complete switch/stage parity is still under review.
+- **149 tests pass** with the real reference toolkit enabled. Setup and migration instructions are in `docs/SETUP.md` and `docs/MIGRATION.md`.
 - Real CRC32 validation covers local and service-built LLVM/ETISS execution, discovery, 110-candidate code generation, combined/split compilers, ETISS, per-instruction and cross-workload evaluation, measured filtering, iterative selection, and final five-instruction compiler/simulator evaluation.
 - Final aggregate instruction-count ratio: **0.73927**; physical speed/area is not measured.
 - Remaining: real PerfSim service and multi-set LLVM execution, physical HLS/PerfSim/synthesis, complete per-script switch/stage audit, and end-to-end example execution. The chronological evidence below records saved states and active job handles.

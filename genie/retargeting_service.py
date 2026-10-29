@@ -59,6 +59,22 @@ class RetargetingService:
         response.raise_for_status()
         return response.json()
 
+    def health(self):
+        response = self.client.get(f"{self.url}/health")
+        response.raise_for_status()
+        return response.json()
+
+    def workers(self):
+        response = self.client.get(f"{self.url}/workers")
+        response.raise_for_status()
+        return response.json()
+
+    def abort(self, job):
+        """Explicitly abort an existing job using the token-protected API."""
+        response = self.client.post(self._job_url(job, "/abort"), params={"token": job.token})
+        response.raise_for_status()
+        return response.json()
+
     def wait(self, job, *, timeout=3600.0, poll_interval=5.0):
         """Observe an existing job; failures and timeouts leave the handle reusable."""
         if timeout <= 0 or poll_interval <= 0:

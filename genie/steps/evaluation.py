@@ -3,6 +3,7 @@ from pathlib import Path
 
 from .isaac import ISAACStep
 from .step import GenIEStep
+from .iss import iss_vars, target_var, iss_target
 
 
 @GenIEStep.factory.register()
@@ -12,6 +13,7 @@ class Reanalyze(ISAACStep):
     inputs = []
     outputs = []
     in_stage = "initial"
+    config_vars = ISAACStep.config_vars + iss_vars + [target_var]
 
     def run(self, state_in, **kwargs):
         kwargs, env = self.extract_env(kwargs)
@@ -23,8 +25,11 @@ class Reanalyze(ISAACStep):
         session = work / "reanalysis"
         names = Path(state_in.paths.get(f"{stage}.names_csv", work / "names.csv"))
         # Check all imported artifacts before creating a session.
+        target = state_in.metrics.get("bench.Target", iss_target(self.config))
+        spike = target.startswith("spike")
+        trace_name = f"{target}_instrs.log" if spike else "etiss_instrs.log"
         files = [trace / "generic_mlonmcu", trace / "mlif/generic/linker.map",
-                 trace / "etiss_instrs.log", trace / "generic_mlonmcu.dump",
+                 trace / trace_name, trace / "generic_mlonmcu.dump",
                  original / "table/ise_instrs.pkl", names]
         for artifact in files:
             if not artifact.is_file():
@@ -38,7 +43,8 @@ class Reanalyze(ISAACStep):
         toolkit("session.create")
         toolkit("frontend.elf.riscv", files[0])
         toolkit("frontend.linker_map", files[1])
-        toolkit("frontend.instr_trace.etiss", files[2], "--operands")
+        toolkit("frontend.instr_trace.spike" if spike else "frontend.instr_trace.etiss",
+                files[2], *([] if spike else ["--operands"]))
         toolkit("frontend.disass.objdump", files[3])
         instructions = work / "ise_instrs.pkl"
         self.run_subprocess(

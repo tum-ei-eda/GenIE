@@ -1,7 +1,7 @@
 # Prototype migration
 
 The reference is `isaac-demo` revision
-`fb3acb1ddcb3af2903837cb45ddba19b289ed5a7`. Python orchestration uses GenIE steps,
+`be593a07f7fa017ff9a1bd886daae820322f566c`. Python orchestration uses GenIE steps,
 typed configuration, and immutable state updates. Stage output directories replace
 the prototype's environment-variable suffix selection. The full checklist and
 validation evidence are maintained in [PROGRESS.md](../PROGRESS.md).
@@ -214,3 +214,98 @@ names `MIN_SEAL5_SCORE` and `MIN_UTIL_SCORE` are accepted as aliases.
 Composed architectures require the split compiler: their individual extensions
 are absent from the combined compiler. This also applies to `--build-arch` at
 other stages, where `<stage>.seal5_splitted.install_dir` is used.
+
+## Current demo alignment
+
+Source pins are recorded in `genie/upstream.py`. Setup writes
+`upstream_sources.json` with the actual checkout revisions and dirty status.
+Local Seal5 uses the [typed-parser main port](SEAL5_PORT.md), with a separate
+runtime source path from the demo's historical Seal5 Gitlink.
+
+`SpikeGenIEFlow` and `SpikeEvaluationFlow` use Spike plugin manifests instead
+of ETISS installations. `cfg/spike.yml` selects HTIF by default; `SPIKE_RUNTIME=pk`
+selects the proxy-kernel target. Set matching `SPIKE_EXE`, `SPIKE_INSTALL_DIR`
+and `ISAAC_GNU_INSTALL_DIR` paths for local operation, or enable
+`USE_SPIKE_SERVICE` and configure the retargeting API. The pinned upstream
+Spike generator supports a restricted instruction behavior subset. GenIE's
+bundled M2-ISA-R patch adds conditional writebacks and unsigned local variables
+of 1–64 bits, including width truncation on assignment. Signed local variables,
+shifts, loops, and other unsupported behavior still fail explicitly; arbitrary
+discovered workloads are not assumed to fit this subset. A guarded RV32 add
+with an unsigned temporary compiled and executed in native Spike, including
+zero-register and overflow checks.
+
+`CFUGenIEFlow` and `CFUDiscoveryFlow` use `cfg/cfu.yml`. CFU allocations persist
+across regeneration in a session ledger. Generated RTL and upstream encoding
+validation are retained with each stage. CFU evaluation uses the stage's
+compiler and allocation manifest, with Verilator, Renode or FPGA execution
+selected by `CFU_RUNNER`. Renode model cycles are reported separately from
+hardware cycle measurements. These flows require external CFU Playground,
+Embench and GNU toolchain installations.
+
+The job API integration uses `/health`, `/workers`, job creation and status,
+finite log retrieval, authenticated abort, and artifact downloads. Spike jobs
+use the `spike` worker tag and validate the returned plugin manifest and
+libraries. Existing workers are not automatically rebuilt or restarted.
+
+
+### Current validation evidence
+
+The latest fetched demo main is `5b9a533`; the proposed marker-fix integration
+commit is `be593a0`. Seal5 and M2-ISA-R now contain the earlier fixes upstream,
+so their compatibility patches have been removed. The pending Seal5/LLVM marker
+correction is described in the port guide. The validation results below are
+from before this source refresh; runtime checks against the forthcoming images
+remain pending. See [SEAL5_PORT.md](SEAL5_PORT.md) for rebuilding
+service images and for repository branches that need pushing.
+
+| Check | Result | Scope |
+| --- | --- | --- |
+| Step and actual toolkit integration | 149 passed, no errors, failures or skips | Includes prototype inventory and real typed CFU generation, filtering, allocation persistence and RTL generation. |
+| Service API contract | Passed | Actual pinned FastAPI application with mocked Redis: LLVM, ETISS, PerfSim and Spike; tokens, timeout/resume, logs, artifacts and abort. |
+| Full Seal5 worker pipeline | Passed | Fused add/XOR: both C++ builds, pattern generation, patch application, all three generated tests, install, source deployment, export and reports. |
+| Compiler and native Spike | Exited 0 | Installed compiler selected the custom instruction; linked RV32 executable passed normal and overflow cases with the matching GenIE-retargeted plugin. Separate opcode probes cover zero-register writes. |
+| Native CFU evaluation | Both variants passed | GenIE `CFU.Evaluate`, pinned demo runner and Verilator; deterministic 64-vector fixture. Baseline: 1,216 cycles/591 instructions; extended: 1,217 cycles/527 instructions. |
+| Native CFU discovery | Passed | CRC32 baseline bench/trace, session loading, analysis, visualization, selection, query, instruction generation and RTL. |
+| Documentation and package | Strict HTML and wheel builds passed | Python 3.12/Sphinx 8.2.3 image; wheel contains CFU/Spike flows and all bundled patches. |
+
+CFU static audits found zero custom instruction sites in the baseline firmware
+and one allocated site in the extended loop. Firmware execution separately
+validated all expected results. The fixture reduced instruction count but did
+not reduce cycle count; it is a correctness check rather than evidence of a
+workload speedup. Physical FPGA execution, Renode execution and arbitrary Spike
+behavior subsets were not covered by these native checks.
+
+#### Evidence locations
+
+- Migration suite: `/tmp/genie-migration-e9e6-tests.xml` (149 tests).
+- API verifier: `/tmp/genie-api-current.log`.
+- Full compiler worker: `/tmp/genie-llvm-modern-validation/compiler-fused.log`.
+- Installed compiler, exports and test reports: `/tmp/genie-llvm-modern-validation/job/output`.
+- Compiled Spike probe: `/tmp/genie-llvm-modern-validation/job/probe-compiled.elf`; emitted custom instruction in `probe-fused.s`.
+- CFU comparison and encoding audits: `/tmp/genie-cfu-fused-evaluation/run/evaluation/work/cfu_evaluation_combined`.
+- Strict documentation: `/tmp/genie-docs-current-ci-output`.
+
+CRC32 discovery used the pinned CFU Playground checkout and passed with
+5,574,217 cycles and 4,179,652 instructions in both bench and trace runs.
+`ISAAC.CreateSession`, `ISAAC.LoadConfig` and `ISAAC.LoadArtifacts` loaded the
+ELF, map, trace, disassembly and compile commands. Analysis, visualization and
+selection then completed, and an isolated Memgraph query returned ten
+candidates. Generation assigned stable function IDs 0–9, passed the upstream
+encoding validator and emitted `cfu.sv`. Artifacts are under
+`/tmp/genie-cfu-native-validation`; final generation state is
+`runs/RUN_2026-10-28_21-34-25`, with work in the session's `work/initial`.
+
+#### Issues found and fixed during native validation
+
+- Historical `RV32I.core_desc`/`RV64I.core_desc` emitter imports now resolve to the pinned architecture's `RVI.core_desc`.
+- CFU subprocesses receive the setup state's `mgclient.lib_dir` through `LD_LIBRARY_PATH`.
+- Choice reports recognize CFU's `firmware.dump` discovery artifact.
+- Seal5 handles the typed model constructors, split encoding literals, current load CLI arguments, disabled patch resources and obsolete immediate-patch references.
+- The service migration adds missing disassembler markers, refreshes the stage-zero revision and immediate inventory, retains generated tests in sparse checkouts and enables the LLVM lit configuration.
+- Generated extension-listing tests select a RISC-V target explicitly.
+- An initial add-only selection test failed because an equivalent base ADD was chosen. The final fused probe has a distinct multi-operation pattern and passed its generated selection test.
+
+The native checks used isolated inputs, copied caches and temporary containers.
+Existing service workers were not rebuilt or restarted. Service image rebuilding
+and deployment remain the operator's actions, as requested.

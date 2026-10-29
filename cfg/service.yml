@@ -13,6 +13,10 @@ SEAL5_SERVICE_TAG: llvm
 ETISS_SERVICE_TAG: etiss
 USE_ETISS_PERF_SERVICE: false
 ETISS_PERF_SERVICE_TAG: etiss_perf
+USE_SPIKE_SERVICE: false
+SPIKE_SERVICE_TAG: spike
+# Set USE_SPIKE_SERVICE=true when using cfg/spike.yml; its native job bridge
+# retains the job handle for resuming observation after timeouts.
 # Optional: execute downloaded simulators with the worker's runtime libraries.
 # Pin the worker image ID/digest for reproducible execution.
 # ETISS_SERVICE_RUNTIME_IMAGE: sha256:...

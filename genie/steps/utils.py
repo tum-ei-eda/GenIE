@@ -90,14 +90,17 @@ def clone(
             # TODO: backup old remote?
             repo.remotes.origin.set_url(url)
             repo.remotes.origin.fetch()
-            repo.git.checkout(branch)
-            repo.git.pull("origin", branch)  # This should also work for specific commits
+            if branch:
+                repo.git.checkout(branch)
+            # A pinned commit is detached and cannot be pulled as a branch.
+            if not repo.head.is_detached:
+                repo.git.pull("--ff-only", "origin", repo.active_branch.name)
             update_submodules(repo)
     else:
         if branch:
-            repo = Repo.clone_from(url, dest, recursive=recursive, no_checkout=True)
+            repo = Repo.clone_from(url, dest, no_checkout=True)
             repo.git.checkout(branch)
             update_submodules(repo)
         else:
-            repo = Repo.clone_from(url, dest, recursive=recursive)
+            repo = Repo.clone_from(url, dest)
             update_submodules(repo)

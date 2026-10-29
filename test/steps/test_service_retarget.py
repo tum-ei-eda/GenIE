@@ -11,6 +11,7 @@ import yaml
 
 from genie.retargeting_service import ServiceJob, extract_artifact
 from genie.steps.isaac import RetargetLLVM, RetargetISS, RetargetPerfSim
+from genie.steps.spike import RetargetSpike
 
 
 def archive(tmp_path, entries):
@@ -34,6 +35,7 @@ def archive(tmp_path, entries):
     (RetargetISS, False, False, False, False), (RetargetPerfSim, False, False, False, False),
     (RetargetISS, False, False, True, False),
     (RetargetLLVM, True, False, True, True), (RetargetLLVM, True, True, True, True),
+    (RetargetSpike, False, False, True, False), (RetargetSpike, False, False, False, False),
 ])
 def test_service_retarget_publishes_artifacts_and_resumes(tmp_path, monkeypatch, cls, compiler, splitted, bundled, multiple):
     import genie.steps.service as module
@@ -42,6 +44,7 @@ def test_service_retarget_publishes_artifacts_and_resumes(tmp_path, monkeypatch,
     step.config = {v.name: v.default for v in cls.config_vars}
     step.config.update(USE_SEAL5_SERVICE=compiler, USE_ETISS_SERVICE=not compiler)
     step.config["USE_ETISS_PERF_SERVICE"] = cls is RetargetPerfSim
+    step.config["USE_SPIKE_SERVICE"] = cls is RetargetSpike
     step.config["SERVICE_BUNDLE_COREDSL"] = bundled
     keep_archive = compiler and not splitted and not multiple
     step.config["SERVICE_KEEP_ARCHIVE"] = keep_archive
@@ -73,6 +76,9 @@ def test_service_retarget_publishes_artifacts_and_resumes(tmp_path, monkeypatch,
              "output/uarchs.csv": "uarch\nexample\n",
              "output/ini/example.ini": "[example]\n",
              "output/InstructionTrace_XISAAC.json": "{}"}
+    files.update({"output/spike/libextension.so": "plugin",
+                  "output/spike/spike_plugin.json": json.dumps({"schema": 1, "core": "XIsaacCore",
+                     "extlibs": ["libextension.so"], "extension_names": ["m2_XIsaacCore"]})})
     if cls is RetargetPerfSim:
         buffer = io.BytesIO()
         with tarfile.open(fileobj=buffer, mode="w:gz") as source_tar:
@@ -114,8 +120,11 @@ def test_service_retarget_publishes_artifacts_and_resumes(tmp_path, monkeypatch,
             return destination
     monkeypatch.setattr(module, "RetargetingService", Service)
     _, metrics, paths = step.run(state)
-    name = "seal5_splitted" if splitted else "seal5" if compiler else "etiss_perf" if cls is RetargetPerfSim else "etiss"
-    assert paths[f"initial.{name}.install_dir"].is_dir()
+    name = "seal5_splitted" if splitted else "seal5" if compiler else "etiss_perf" if cls is RetargetPerfSim else "spike" if cls is RetargetSpike else "etiss"
+    if cls is RetargetSpike:
+        assert paths["initial.spike.plugin_manifest"].is_file()
+    else:
+        assert paths[f"initial.{name}.install_dir"].is_dir()
     if cls is RetargetPerfSim:
         assert (paths["initial.etiss_perf.src_dir"] / "src/bare_etiss_processor/get_metrics.py").is_file()
     assert len(list((tmp_path / "sess").rglob("artifact.tar.zst"))) == int(keep_archive)
@@ -123,7 +132,7 @@ def test_service_retarget_publishes_artifacts_and_resumes(tmp_path, monkeypatch,
         assert metrics[f"initial.{name}.total_count"] == 1
     step.run(state)
     assert len(submitted) == 1
-    artifact_key = "LLVM_INSTALL_DIR" if compiler else "ETISS_PERF_INSTALL_DIR" if cls is RetargetPerfSim else "ETISS_INSTALL_DIR"
+    artifact_key = "LLVM_INSTALL_DIR" if compiler else "ETISS_PERF_INSTALL_DIR" if cls is RetargetPerfSim else "SPIKE_PLUGIN_MANIFEST" if cls is RetargetSpike else "ETISS_INSTALL_DIR"
     assert yaml.safe_load(index.read_text())["global"]["artifacts"][artifact_key]
     (gen / (llvm_filename if compiler else "XIsaacCore.core_desc")).write_text("changed")
     with pytest.raises(ValueError, match="inputs differ"):

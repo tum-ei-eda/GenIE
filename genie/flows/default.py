@@ -53,6 +53,7 @@ class DefaultGenIEFlow(SequentialGenIEFlow):
         Setup.SetupETISS,
         Setup.SetupMLonMCU,
         Setup.SetupM2ISAR,
+        Setup.SetupSeal5,
         MLonMCU.Bench,
         MLonMCU.Trace,
         ISAAC.CreateSession,

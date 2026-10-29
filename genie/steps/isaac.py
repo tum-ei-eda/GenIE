@@ -8,6 +8,8 @@ from genie.state import State
 
 import pandas as pd
 from .service import service_vars, retarget_service
+from .iss import spike_vars, iss_backend, encoding_policy_var
+from .common_vars import seal5_source_var
 
 isaac_vars = [
     Variable(
@@ -159,6 +161,7 @@ class LoadConfig(ISAACStep):
     outputs = []
 
     config_vars = ISAACStep.config_vars + [
+        encoding_policy_var,
         Variable(
             "ISAAC_TOOLKIT_CONFIG_YAML",
             Optional[str],
@@ -178,7 +181,8 @@ class LoadConfig(ISAACStep):
         label = "sess"
         sess_dir = pathlib.Path(state_in.paths[f"{label}.dir"])
         assert sess_dir.is_dir(), f"Missing dir: {sess_dir}"
-        config_yaml = config["ISAAC_TOOLKIT_CONFIG_YAML"] or demo_dir / "cfg" / "isaac_toolkit" / "default.yml"
+        default_config = "iss_only_rv32.yml" if config.get("ISAAC_ENCODING_POLICY") == "cfu" else "default.yml"
+        config_yaml = config["ISAAC_TOOLKIT_CONFIG_YAML"] or demo_dir / "cfg" / "isaac_toolkit" / default_config
         config_yaml = pathlib.Path(config_yaml)
         if not config_yaml.is_file():
             raise FileNotFoundError(config_yaml)
@@ -391,7 +395,9 @@ class ReportChoices(ISAACStep):
         blocks = pd.read_pickle(sess / "table/llvm_bbs_new.pkl")
         merged = choices.merge(blocks[["func_name", "bb_name", "start", "end"]],
                                on=["func_name", "bb_name"], how="left", validate="many_to_one")
-        dump = pathlib.Path(state_in.paths["trace.output_dir"]) / "generic_mlonmcu.dump"
+        trace_dir = pathlib.Path(state_in.paths["trace.output_dir"])
+        dump = trace_dir / ("firmware.dump" if (trace_dir / "cfu_discovery.json").is_file()
+                            else "generic_mlonmcu.dump")
         instructions = []
         for line in dump.read_text().splitlines():
             match = re.match(r"^\s*([0-9a-fA-F]+):", line)
@@ -552,6 +558,7 @@ class QueryCandidates(ISAACStep):
     outputs = []
 
     config_vars = ISAACStep.config_vars + [
+        encoding_policy_var,
         Variable("CDFG_STAGE", int, "LLVM CDFG stage mask used for export and query.", default=32),
         Variable(
             "ISAAC_QUERY_CONFIG_YAML",
@@ -590,6 +597,13 @@ class QueryCandidates(ISAACStep):
         extra_args = []
         config = self.config
         isaac_query_config_yaml = config["ISAAC_QUERY_CONFIG_YAML"]
+        policy = config.get("ISAAC_ENCODING_POLICY", "auto")
+        if policy not in ("auto", "cfu"):
+            raise ValueError("ISAAC_ENCODING_POLICY must be auto or cfu")
+        if policy == "cfu":
+            extra_args += ["--encoding-policy", "cfu"]
+            if not isaac_query_config_yaml:
+                isaac_query_config_yaml = demo_dir / "cfg/isaac/query/cfu.yml"
         if isaac_query_config_yaml:
             extra_args += ["--query-config-yaml", isaac_query_config_yaml]
         for key, option in (
@@ -703,6 +717,21 @@ class GenerateInstrs(ISAACStep):
             has_force=True,
             env=env,
         )
+        # The pinned emitter still names the split RV32I/RV64I files. The
+        # current architecture checkout defines both sets in RVI.core_desc.
+        import re
+        canonical_base = demo_dir / "etiss_arch_riscv/rv_base/RVI.core_desc"
+        if not canonical_base.is_file():
+            raise FileNotFoundError(canonical_base)
+        for description in gen_dir.glob("*.core_desc"):
+            source = description.read_text()
+            updated = re.sub(
+                r'(?m)^(\s*import\s+)"RV(?:32|64)I\.core_desc"',
+                lambda match: match[1] + '"' + str(canonical_base.resolve()) + '"',
+                source,
+            )
+            if updated != source:
+                description.write_text(updated)
         paths_updates[f"{name}.gen_dir"] = gen_dir
         total_enc_metrics_csv = out_dir / "total_encoding_metrics.csv"
         assert total_enc_metrics_csv.is_file(), f"Missing file: {total_enc_metrics_csv}"
@@ -730,6 +759,7 @@ class GenerateETISSCore(ISAACStep):
     in_stage = "initial"
 
     config_vars = ISAACStep.config_vars + [
+        encoding_policy_var,
         Variable(
             "ISAAC_BASE_EXTENSIONS",
             str,
@@ -778,6 +808,14 @@ class GenerateETISSCore(ISAACStep):
         extra_args += ["--xlen", xlen]
         extra_args += ["--auto-encoding"]
         extra_args += ["--split"]
+        policy = config.get("ISAAC_ENCODING_POLICY", "auto")
+        if policy not in ("auto", "cfu"):
+            raise ValueError("ISAAC_ENCODING_POLICY must be auto or cfu")
+        if policy == "cfu":
+            if xlen != 32:
+                raise ValueError("CFU encodings require RV32")
+            manifest = work_dir / "cfu_manifest.json"
+            extra_args += ["--encoding-policy", "cfu", "--encoding-manifest", manifest]
         if True:  # etiss only
             extra_args += ["--semihosting"]
             extra_args += ["--base-extensions", base_extensions_str]
@@ -795,6 +833,19 @@ class GenerateETISSCore(ISAACStep):
             has_force=True,
             env=env,
         )
+        if policy == "cfu":
+            self.run_subprocess(
+                [scripts_dir / "launch.sh", "python3", scripts_dir / "verify_cfu_artifacts.py",
+                 "--index", index_file, "--gen-dir", gen_dir, "--manifest", manifest,
+                 "--set-name", set_name, "--base-dir", base_dir], env=env, check=True, **kwargs,
+            )
+            for filename, key in (("cfu_manifest.json", "manifest"),
+                                  ("cfu_encoding_validation.json", "encoding_validation")):
+                artifact = gen_dir / filename
+                if not artifact.is_file():
+                    raise FileNotFoundError(artifact)
+                paths_updates[f"{name}.cfu.{key}"] = artifact
+            paths_updates["cfu.allocation_manifest"] = manifest
         return views_updates, metrics_updates, paths_updates
 
 
@@ -813,11 +864,12 @@ class RetargetLLVM(ISAACStep):
     in_stage = "initial"
 
     config_vars = ISAACStep.config_vars + service_vars + [
+        seal5_source_var,
         Variable("USE_SEAL5_SERVICE", bool, "Retarget LLVM through the job API.", default=False),
         isaac_set_name_var,
         Variable("SEAL5_BUILD_DIR", Optional[str], "Reusable local Seal5 build workspace.", default=None),
         Variable("SEAL5_LLVM_REPO", Optional[str], "Override LLVM clone source for local retargeting.", default=None),
-        Variable("SEAL5_LLVM_REF", Optional[str], "Override LLVM branch or tag used by the local adapter.", default=None),
+        Variable("SEAL5_LLVM_REF", Optional[str], "LLVM branch or tag used by the local adapter.", default="isaacnew-base-4"),
         Variable(
             "USE_SEAL5_DOCKER",
             bool,
@@ -889,7 +941,7 @@ class RetargetLLVM(ISAACStep):
         cfg_dir = demo_dir / "cfg"
         seal5_cfg_dir = cfg_dir / "seal5"
         env["SEAL5_CFG_DIR"] = seal5_cfg_dir
-        seal5_src_dir = pathlib.Path(state_in.paths.get("seal5.src_dir", demo_dir / "seal5"))  # TODO: drop fallback
+        seal5_src_dir = pathlib.Path(config.get("SEAL5_SRC_DIR") or state_in.paths.get("seal5.src_dir", demo_dir / "seal5"))  # TODO: drop fallback
         env["SEAL5_DIR"] = seal5_src_dir
         llvm_src_dir = pathlib.Path(
             state_in.paths.get("llvm.src_dir", demo_dir / "llvm-project")
@@ -901,10 +953,12 @@ class RetargetLLVM(ISAACStep):
         set_name = config["ISAAC_SET_NAME"]
         use_docker = config["USE_SEAL5_DOCKER"]
         shared_build = config["SEAL5_BUILD_DIR"] or state_in.paths.get("temporary.initial.seal5_build")
-        if not use_docker and (config["SEAL5_LLVM_REPO"] or config["SEAL5_LLVM_REF"] or shared_build):
+        if not use_docker:
             # Toolkit versions overwrite LLVM_REPO/LLVM_REF before invoking the
             # script. Apply explicit overrides at that final adapter boundary.
             env["GENIE_SEAL5_SCRIPT"] = str(seal5_script_local)
+            typed_source = state_in.paths.get("m2isar.src_dir", demo_dir / "M2-ISA-R")
+            env["GENIE_SEAL5_M2ISAR_DIR"] = str(typed_source)
             if shared_build:
                 env["GENIE_SEAL5_HOME"] = str(pathlib.Path(shared_build).resolve())
             if config["SEAL5_LLVM_REPO"]:
@@ -1000,7 +1054,7 @@ class RetargetISS(ISAACStep):
     in_stage = "initial"
     perf_sim = False
 
-    config_vars = ISAACStep.config_vars + service_vars + [
+    config_vars = ISAACStep.config_vars + service_vars + spike_vars + [
         Variable("USE_ETISS_SERVICE", bool, "Retarget ETISS through the job API.", default=False),
         Variable("USE_ETISS_PERF_SERVICE", bool, "Retarget PerfSim through the job API.", default=False),
         Variable("USE_ETISS_PERF_DOCKER", bool, "Run PerfSim retargeting in Docker.", default=False),
@@ -1033,6 +1087,9 @@ class RetargetISS(ISAACStep):
     ]
 
     def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
+        if not self.perf_sim and iss_backend(self.config) == "spike":
+            from .spike import retarget_spike
+            return retarget_spike(self, state_in, **kwargs)
         if self.config.get("USE_ETISS_PERF_SERVICE" if self.perf_sim else "USE_ETISS_SERVICE", False):
             return retarget_service(self, state_in)
         kwargs, env = self.extract_env(kwargs)

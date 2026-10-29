@@ -1,0 +1,16 @@
+---
+# CFU-constrained RV32 discovery/evaluation; use the pinned demo's CFU query.
+ISAAC_ENCODING_POLICY: cfu
+ISAAC_XLEN: 32
+ISS: etiss
+TARGET: etiss
+ARCH: rv32im_zicsr_zifencei
+ABI: ilp32
+FPU: none
+ISAAC_BASE_EXTENSIONS: i,m,c,zicsr,zifencei
+CFU_RUNNER: verilator
+CFU_SIM_TIMEOUT: 600
+# Set these for CFUGenIEFlow or CFUDiscoveryFlow:
+# CFU_PLAYGROUND_DIR: /path/to/CFU-Playground-at-7f8ec414
+# CFU_EMBENCH_DIR: /path/to/embench
+# ISAAC_GNU_INSTALL_DIR: /path/to/rv32im-ilp32-toolchain

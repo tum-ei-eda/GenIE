@@ -1,0 +1,109 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.28", nodesep="0.22", ranksep="0.32", splines=polyline, fontname="Arial", labelloc=t, labeljust=l, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>GenIE | Flow comparison</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Shared phases aligned across four registered Python flows · grouped steps, current implementation</FONT></TD></TR></TABLE>>];
+node [shape=box, style="rounded,filled", color="#CBD5E1", fillcolor="#F1F4F8", fontname="Arial", fontsize=12, margin="0.07,0.04", penwidth=1.1];
+edge [color="#64748B", arrowsize=0.65, penwidth=1.2, fontname="Arial", fontsize=10];
+corner [shape=plain, label="PHASE", fontcolor="#64748B"];
+h0 [fillcolor="#172B4D", fontcolor="white", color="#172B4D", width=3.15, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>ISS · default</B></TD></TR><TR><TD><FONT POINT-SIZE="10">DefaultGenIEFlow</FONT></TD></TR></TABLE>>];
+h1 [fillcolor="#172B4D", fontcolor="white", color="#172B4D", width=3.15, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>ISS · extended evaluation</B></TD></TR><TR><TD><FONT POINT-SIZE="10">ISSEvaluationFlow</FONT></TD></TR></TABLE>>];
+h2 [fillcolor="#172B4D", fontcolor="white", color="#172B4D", width=3.15, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Performance simulation</B></TD></TR><TR><TD><FONT POINT-SIZE="10">PerfSimGenIEFlow</FONT></TD></TR></TABLE>>];
+h3 [fillcolor="#172B4D", fontcolor="white", color="#172B4D", width=3.15, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Hardware-aware selection</B></TD></TR><TR><TD><FONT POINT-SIZE="10">HardwareSelectionFlow</FONT></TD></TR></TABLE>>];
+{rank=same; corner; h0; h1; h2; h3;}
+corner -> h0 -> h1 -> h2 -> h3 [style=invis, weight=100];
+p0 [shape=plain, fontcolor="#64748B", label="Setup"];
+n0_0 [group="lane0", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Setup &amp; checks</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Tools · session environment</FONT></TD></TR></TABLE>>];
+h0 -> n0_0;
+n0_1 [group="lane1", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Setup &amp; checks</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Tools · session environment</FONT></TD></TR></TABLE>>];
+h1 -> n0_1;
+n0_2 [group="lane2", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Setup &amp; checks</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Tools · session environment</FONT></TD></TR></TABLE>>];
+h2 -> n0_2;
+n0_3 [group="lane3", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Setup &amp; checks</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Tools · session environment</FONT></TD></TR></TABLE>>];
+h3 -> n0_3;
+{rank=same; p0; n0_0; n0_1; n0_2; n0_3;}
+p0 -> n0_0 -> n0_1 -> n0_2 -> n0_3 [style=invis, weight=100];
+p1 [shape=plain, fontcolor="#64748B", label="Baseline"];
+p0 -> p1 [style=invis, weight=100];
+n1_0 [group="lane0", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Benchmark &amp; instruction trace</B></TD></TR><TR><TD><FONT POINT-SIZE="10">MLonMCU.Bench / Trace</FONT></TD></TR></TABLE>>];
+n0_0 -> n1_0;
+n1_1 [group="lane1", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Benchmark &amp; instruction trace</B></TD></TR><TR><TD><FONT POINT-SIZE="10">MLonMCU.Bench / Trace</FONT></TD></TR></TABLE>>];
+n0_1 -> n1_1;
+n1_2 [group="lane2", width=3.15, fillcolor="#DCEBFA", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>PerfSim benchmark &amp; trace</B></TD></TR><TR><TD><FONT POINT-SIZE="10">PerfSimBench / PerfSimTrace</FONT></TD></TR></TABLE>>];
+n0_2 -> n1_2;
+n1_3 [group="lane3", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Benchmark &amp; instruction trace</B></TD></TR><TR><TD><FONT POINT-SIZE="10">MLonMCU.Bench / Trace</FONT></TD></TR></TABLE>>];
+n0_3 -> n1_3;
+{rank=same; p1; n1_0; n1_1; n1_2; n1_3;}
+p1 -> n1_0 -> n1_1 -> n1_2 -> n1_3 [style=invis, weight=100];
+p2 [shape=plain, fontcolor="#64748B", label="Discovery"];
+p1 -> p2 [style=invis, weight=100];
+n2_0 [group="lane0", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Discover candidates</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Load → analyze → pick → CDFG → query</FONT></TD></TR></TABLE>>];
+n1_0 -> n2_0;
+n2_1 [group="lane1", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Discover candidates</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Load → analyze → pick → CDFG → query</FONT></TD></TR></TABLE>>];
+n1_1 -> n2_1;
+n2_2 [group="lane2", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Discover candidates</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Load → analyze → pick → CDFG → query</FONT></TD></TR></TABLE>>];
+n1_2 -> n2_2;
+n2_3 [group="lane3", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Discover candidates</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Load → analyze → pick → CDFG → query</FONT></TD></TR></TABLE>>];
+n1_3 -> n2_3;
+{rank=same; p2; n2_0; n2_1; n2_2; n2_3;}
+p2 -> n2_0 -> n2_1 -> n2_2 -> n2_3 [style=invis, weight=100];
+p3 [shape=plain, fontcolor="#64748B", label="Generation"];
+p2 -> p3 [style=invis, weight=100];
+n3_0 [group="lane0", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Generate instructions &amp; core</B></TD></TR><TR><TD><FONT POINT-SIZE="10">GenerateInstrs / GenerateETISSCore</FONT></TD></TR></TABLE>>];
+n2_0 -> n3_0;
+n3_1 [group="lane1", width=3.15, fillcolor="#DDF1E9", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Generate + encoding metrics</B></TD></TR><TR><TD><FONT POINT-SIZE="10">GenerateInstrs / GenerateETISSCore<BR/>AssignEncodingScore</FONT></TD></TR></TABLE>>];
+n2_1 -> n3_1;
+n3_2 [group="lane2", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Generate instructions &amp; core</B></TD></TR><TR><TD><FONT POINT-SIZE="10">GenerateInstrs / GenerateETISSCore</FONT></TD></TR></TABLE>>];
+n2_2 -> n3_2;
+n3_3 [group="lane3", width=3.15, fillcolor="#DDF1E9", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Generate + encoding metrics</B></TD></TR><TR><TD><FONT POINT-SIZE="10">GenerateInstrs / GenerateETISSCore<BR/>AssignEncodingScore</FONT></TD></TR></TABLE>>];
+n2_3 -> n3_3;
+{rank=same; p3; n3_0; n3_1; n3_2; n3_3;}
+p3 -> n3_0 -> n3_1 -> n3_2 -> n3_3 [style=invis, weight=100];
+p4 [shape=plain, fontcolor="#64748B", label="Retargeting"];
+p3 -> p4 [style=invis, weight=100];
+n4_0 [group="lane0", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>LLVM + functional ISS</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Combined / split LLVM · ETISS</FONT></TD></TR></TABLE>>];
+n3_0 -> n4_0;
+n4_1 [group="lane1", width=3.15, fillcolor="#DDF1E9", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>LLVM + functional ISS</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Combined / split LLVM · ETISS<BR/>Compiler-support annotation</FONT></TD></TR></TABLE>>];
+n3_1 -> n4_1;
+n4_2 [group="lane2", width=3.15, fillcolor="#DCEBFA", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>LLVM + timing simulator</B></TD></TR><TR><TD><FONT POINT-SIZE="10">HLS scheduling → PerfSim retargeting<BR/>RetargetPerfSim replaces RetargetISS</FONT></TD></TR></TABLE>>];
+n3_2 -> n4_2;
+n4_3 [group="lane3", width=3.15, fillcolor="#DDF1E9", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>LLVM + functional ISS</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Combined / split LLVM · ETISS<BR/>Compiler-support annotation</FONT></TD></TR></TABLE>>];
+n3_3 -> n4_3;
+{rank=same; p4; n4_0; n4_1; n4_2; n4_3;}
+p4 -> n4_0 -> n4_1 -> n4_2 -> n4_3 [style=invis, weight=100];
+p5 [shape=plain, fontcolor="#64748B", label="Evaluation"];
+p4 -> p5 [style=invis, weight=100];
+n5_0 [group="lane0", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Benchmark &amp; compare</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Aggregate + per-instruction evaluation</FONT></TD></TR></TABLE>>];
+n4_0 -> n5_0;
+n5_1 [group="lane1", width=3.15, fillcolor="#DDF1E9", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Evaluate &amp; reanalyze</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Benchmarks + trace / reanalysis<BR/>Utilization → score → sort</FONT></TD></TR></TABLE>>];
+n4_1 -> n5_1;
+n5_2 [group="lane2", width=3.15, fillcolor="#DCEBFA", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>PerfSim benchmark &amp; compare</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Microarchitecture sweep + CPI ranking<BR/>Per-instruction evaluation retained</FONT></TD></TR></TABLE>>];
+n4_2 -> n5_2;
+n5_3 [group="lane3", width=3.15, fillcolor="#DDF1E9", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Evaluate &amp; reanalyze</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Benchmarks + trace / reanalysis<BR/>Utilization → score → sort</FONT></TD></TR></TABLE>>];
+n4_3 -> n5_3;
+{rank=same; p5; n5_0; n5_1; n5_2; n5_3;}
+p5 -> n5_0 -> n5_1 -> n5_2 -> n5_3 [style=invis, weight=100];
+p6 [shape=plain, fontcolor="#64748B", label="Refinement"];
+p5 -> p6 [style=invis, weight=100];
+n6_0 [group="lane0", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Filter → regenerate</B></TD></TR><TR><TD><FONT POINT-SIZE="10">initial → filtered<BR/>Generate instructions &amp; ETISS core</FONT></TD></TR></TABLE>>];
+n5_0 -> n6_0;
+n6_1 [group="lane1", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Filter → regenerate</B></TD></TR><TR><TD><FONT POINT-SIZE="10">initial → filtered<BR/>Generate instructions &amp; ETISS core</FONT></TD></TR></TABLE>>];
+n5_1 -> n6_1;
+n6_2 [group="lane2", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Filter → regenerate</B></TD></TR><TR><TD><FONT POINT-SIZE="10">initial → filtered<BR/>Generate instructions &amp; ETISS core</FONT></TD></TR></TABLE>>];
+n5_2 -> n6_2;
+n6_3 [group="lane3", width=3.15, fillcolor="#FFF0D5", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Filter → select → reevaluate</B></TD></TR><TR><TD><FONT POINT-SIZE="10">filtered: ISS evaluation + HLS + scores<BR/>filtered_selected → final<BR/>final: ISS evaluation + HLS + synthesis</FONT></TD></TR></TABLE>>];
+n5_3 -> n6_3;
+{rank=same; p6; n6_0; n6_1; n6_2; n6_3;}
+p6 -> n6_0 -> n6_1 -> n6_2 -> n6_3 [style=invis, weight=100];
+p7 [shape=plain, fontcolor="#64748B", label="Outputs"];
+p6 -> p7 [style=invis, weight=100];
+n7_0 [group="lane0", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Report &amp; finalize</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Permissions · summary · bundle · cleanup</FONT></TD></TR></TABLE>>];
+n6_0 -> n7_0;
+n7_1 [group="lane1", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Report &amp; finalize</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Permissions · summary · bundle · cleanup</FONT></TD></TR></TABLE>>];
+n6_1 -> n7_1;
+n7_2 [group="lane2", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Report &amp; finalize</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Permissions · summary · bundle · cleanup</FONT></TD></TR></TABLE>>];
+n6_2 -> n7_2;
+n7_3 [group="lane3", width=3.15, fillcolor="#F1F4F8", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Report &amp; finalize</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Permissions · summary · bundle · cleanup</FONT></TD></TR></TABLE>>];
+n6_3 -> n7_3;
+{rank=same; p7; n7_0; n7_1; n7_2; n7_3;}
+p7 -> n7_0 -> n7_1 -> n7_2 -> n7_3 [style=invis, weight=100];
+legend [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Reading the figure</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Gray: shared phase · green: added evaluation · blue: replacement · amber: expanded hardware refinement<BR/>Colors describe structure, not validation. Physical HLS / timing-enabled PerfSim / synthesis validation is pending.<BR/>Each column is a sequential flow; refinement expands the evaluation block at explicit candidate stages.</FONT></TD></TR></TABLE>>];
+n7_1 -> legend [style=invis]; n7_2 -> legend [style=invis];
+}

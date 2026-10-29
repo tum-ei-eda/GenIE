@@ -18,7 +18,7 @@ Some parts of the implementation are already available via: https://github.com/t
 Support for:
 - 64-bit application cores (multi-issue pipelines)
 - custom memory & branch instructions
-- more simulators (i.e. Spike/riscv-isa-sim) and compilers (i.e. RISCV-GCC)
+- additional simulators and compilers (e.g. RISCV-GCC)
 - alternative retargeting/synthesis tools
 - different extension interfaces (i.e. OpenHWGroup CV-X-IF)
 
@@ -37,3 +37,14 @@ the projects [Scale4Edge](https://www.edacentrum.de/scale4edge/) (grant number 1
 
 Launch experiments from a browser form or the CLI, then inspect stages, live
 logs, and metrics in the same lightweight web app. See [the monitor guide](docs/monitor.md) for startup and remote access.
+
+### Seal5 source compatibility
+
+Local LLVM retargeting uses the [ISAAC port of current Seal5 main](docs/SEAL5_PORT.md), including the typed CoreDSL parser.
+
+## ISAAC demo alignment
+
+GenIE tracks the audited ISAAC demo sources and supports Spike plugin and CFU
+flows with the current retargeting job API. See [the migration guide](docs/MIGRATION.md)
+for configuration and validation, and [the Seal5 guide](docs/SEAL5_PORT.md) for
+service image rebuilding and repository branches to push.

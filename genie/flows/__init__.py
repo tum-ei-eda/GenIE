@@ -26,3 +26,5 @@ from . import builtins
 from .cli import cloup_flow_opts
 
 from .evaluation import ISSEvaluationFlow, HardwareSelectionFlow
+from .spike import SpikeGenIEFlow, SpikeEvaluationFlow
+from .cfu import CFUGenIEFlow, CFUDiscoveryFlow

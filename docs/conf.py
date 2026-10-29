@@ -1,5 +1,6 @@
 """Sphinx configuration for the staged sources prepared by build_docs.py."""
 import os
+from pathlib import Path
 
 project = "GenIE"
 author = "GenIE contributors"
@@ -9,9 +10,10 @@ root_doc = "index"
 exclude_patterns = ["docs/index.md"]
 html_theme = "furo"
 html_title = "GenIE Documentation"
-html_logo = "docs/_static/genie-logo.png"
-html_favicon = "docs/_static/favicon.ico"
-html_static_path = ["docs/_static"]
+_static = Path(__file__).resolve().parent / "_static"
+html_logo = str(_static / "genie-logo.png")
+html_favicon = str(_static / "favicon.ico")
+html_static_path = [str(_static)]
 html_baseurl = "https://tum-ei-eda.github.io/GenIE/"
 html_theme_options = {
     "source_repository": "https://github.com/tum-ei-eda/GenIE/",

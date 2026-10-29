@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "TODO."
 authors = ["Philipp van Kempen <philipp.van-kempen@tum.de>"]
 readme = "README.md"
+include = [{ path = "genie/patches/*.patch", format = ["sdist", "wheel"] }]
 license = "Apache-2.0"
 homepage = "https://github.com/tum-ei-eda/GenIE"
 repository = "https://github.com/tum-ei-eda/GenIE"
@@ -34,10 +35,9 @@ GitPython = "~=3.1.45"
 docker = "~=7.1.0"
 pandas = "~=2.3.3"
 openlane = { git = "https://github.com/PhilippvK/openlane2", branch = "genie_wip" }
-mlonmcu = { git = "https://github.com/tum-ei-eda/mlonmcu", branch = "isaac-demo-rebased", optional = true }
-m2isar = { git = "https://github.com/PhilippvK/M2-ISA-R", rev = "051d3354811e94f6ed61f4fdc54188370884e828", optional = true }
-isaac-toolkit = { git = "https://github.com/tum-ei-eda/isaac-toolkit", branch = "isaac-demo-newer-nov", optional = true }
-seal5 = { git = "https://github.com/tum-ei-eda/seal5", branch = "future-paper-4", optional = true }
+mlonmcu = { git = "https://github.com/tum-ei-eda/mlonmcu", rev = "ee84b85f2d7bf4dd898717cb12a80cb05dc45250", optional = true }
+m2isar = { git = "https://github.com/tum-ei-eda/M2-ISA-R", rev = "59ba470011fafe5e814a2b9ca9504d8175fe25cc", optional = true }
+isaac-toolkit = { git = "https://github.com/tum-ei-eda/isaac-toolkit", rev = "43fae872a999e9bbbe491e9f173ad7aca8c070a4", optional = true }
 
 
 [tool.poetry.group.dev.dependencies]
@@ -70,7 +70,8 @@ pyfakefs = ">=5.2.3,<6"
 pillow = ">=10.0.1,<11"
 
 [tool.poetry.extras]
-local = ["mlonmcu", "m2isar", "isaac-toolkit", "seal5"]
+local = ["mlonmcu", "m2isar", "isaac-toolkit"]
+# Setup.SetupSeal5 installs the pinned upstream source plus the bundled ISAAC patch.
 
 [tool.poetry.scripts]
 genie = "genie.__main__:cli"

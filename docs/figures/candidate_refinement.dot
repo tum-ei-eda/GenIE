@@ -1,0 +1,30 @@
+digraph G {
+graph [rankdir=TB, bgcolor="white", pad="0.28", nodesep="0.22", ranksep="0.32", splines=polyline, fontname="Arial", labelloc=t, labeljust=l, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>GenIE | Candidate refinement</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Main HardwareSelectionFlow path · solid arrows: candidate progression · dashed arrows: measurement feedback</FONT></TD></TR></TABLE>>];
+node [shape=box, style="rounded,filled", color="#CBD5E1", fillcolor="#F1F4F8", fontname="Arial", fontsize=12, margin="0.07,0.04", penwidth=1.1];
+edge [color="#64748B", arrowsize=0.65, penwidth=1.2, fontname="Arial", fontsize=10];
+initial [fillcolor="#F1F4F8", width=3.3, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>initial</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Discovered candidate index</FONT></TD></TR></TABLE>>];
+first [fillcolor="#DDF1E9", width=3.3, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>FilterCandidates</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Compiler support + measured runtime benefit</FONT></TD></TR></TABLE>>];
+filtered [fillcolor="#F1F4F8", width=3.3, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>filtered</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Candidates surviving the first filter</FONT></TD></TR></TABLE>>];
+select [fillcolor="#DDF1E9", width=3.3, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>SelectWithSpecializations</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Score / sort + specialization graph<BR/>Iterative selection under an encoding-cost budget</FONT></TD></TR></TABLE>>];
+selected [fillcolor="#F1F4F8", width=3.3, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>filtered_selected</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Selected candidates</FONT></TD></TR></TABLE>>];
+finalize [fillcolor="#DDF1E9", width=3.3, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>SelectCandidates</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Top-k if configured (0 = keep all)<BR/>Rename instructions and regenerate stage metadata</FONT></TD></TR></TABLE>>];
+final [fillcolor="#F1F4F8", width=3.3, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>final</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Final instruction set</FONT></TD></TR></TABLE>>];
+e0 [fillcolor="#DDF1E9", width=3.7, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Evaluate initial candidates</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Combined / split LLVM + ETISS<BR/>Aggregate + per-instruction benchmarks<BR/>Trace → reanalysis → utilization → score / sort</FONT></TD></TR></TABLE>>];
+e1 [fillcolor="#FFF0D5", width=3.7, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Reevaluate filtered candidates</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Repeat compiler / ISS evaluation + reanalysis<BR/>HLS → implementation metrics → score / sort</FONT></TD></TR></TABLE>>];
+e2 [fillcolor="#FFF0D5", width=3.7, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Evaluate final implementation</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Repeat compiler / ISS evaluation + reanalysis<BR/>HLS → score / sort → enabled synthesis<BR/>Attach synthesis metrics → report</FONT></TD></TR></TABLE>>];
+stop [fillcolor="#F1F4F8", width=3.3, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Shorter registered flows</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Default ISS / PerfSim / extended ISS<BR/>stop after filtered-stage instruction<BR/>and core generation; no automatic selection</FONT></TD></TR></TABLE>>];
+initial -> first -> filtered -> select -> selected -> finalize -> final;
+{rank=same; initial; e0;}
+initial -> e0 [label=" stage artifacts", color="#26806A", constraint=false];
+{rank=same; filtered; e1;}
+filtered -> e1 [label=" stage artifacts", color="#26806A", constraint=false];
+{rank=same; final; e2;}
+final -> e2 [label=" stage artifacts", color="#26806A", constraint=false];
+e0 -> first [style=dashed, color="#26806A", label=" measured benefit", constraint=false];
+e1 -> select [style=dashed, color="#26806A", label=" updated scores / costs", constraint=false];
+e0 -> e1 -> e2 [style=invis, weight=10];
+{rank=same; filtered; stop; e1;}
+filtered -> stop [style=dotted, arrowhead=none, constraint=false, color="#94A3B8"];
+note [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4"><TR><TD><B>Explicit stages, shared evaluation</B></TD></TR><TR><TD><FONT POINT-SIZE="10">Evaluation is repeated at initial, filtered, and final; dashed feedback does not imply an automatic runtime loop.<BR/>HardwareSelectionFlow uses the solid path. Standalone phase APIs also expose filtered2 / filtered2_selected / prelim / prelim_filtered.<BR/>HLS / synthesis depend on configuration and external tools. Physical hardware validation remains pending.</FONT></TD></TR></TABLE>>];
+final -> note [style=invis]; e2 -> note [style=invis];
+}

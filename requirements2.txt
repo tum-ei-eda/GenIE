@@ -1,7 +1,8 @@
 gitpython
 docker
 openlane @ git+https://github.com/PhilippvK/openlane2@genie
-m2isar @ git+https://github.com/PhilippvK/M2-ISA-R@051d3354811e94f6ed61f4fdc54188370884e828
-isaac-toolkit @ git+https://github.com/tum-ei-eda/isaac-toolkit@isaac-demo-newer-nov
-mlonmcu @ git+https://github.com/tum-ei-eda/mlonmcu@isaac-demo-rebased
-seal5 @ git+https://github.com/tum-ei-eda/seal5@future-paper-4
+m2isar @ git+https://github.com/tum-ei-eda/M2-ISA-R@59ba470011fafe5e814a2b9ca9504d8175fe25cc
+isaac-toolkit @ git+https://github.com/tum-ei-eda/isaac-toolkit@43fae872a999e9bbbe491e9f173ad7aca8c070a4
+mlonmcu @ git+https://github.com/tum-ei-eda/mlonmcu@ee84b85f2d7bf4dd898717cb12a80cb05dc45250
+
+# Seal5 is installed by Setup.SetupSeal5 from pinned main plus the ISAAC port.

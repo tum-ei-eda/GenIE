@@ -78,6 +78,7 @@ def main():
                         ignore=shutil.ignore_patterns("_build", "__pycache__"))
         shutil.copy2(ROOT / "PROGRESS.md", source / "PROGRESS.md")
         shutil.copytree(ROOT / "cfg", source / "cfg")
+        shutil.copytree(ROOT / "genie/patches", source / "genie/patches")
         shutil.copy2(ROOT / "docs/index.md", source / "index.md")
         if (source / "docs/figures/README.md").exists():
             with (source / "index.md").open("a", encoding="utf-8") as index:

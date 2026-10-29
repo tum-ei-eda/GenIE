@@ -1,0 +1,100 @@
+diff --git a/worker/etiss_llvm/Dockerfile b/worker/etiss_llvm/Dockerfile
+index b4181d4..b435751 100644
+--- a/worker/etiss_llvm/Dockerfile
++++ b/worker/etiss_llvm/Dockerfile
+@@ -7,10 +7,6 @@ WORKDIR /app
+ RUN cp /work/llvm/.seal5/settings.yml /opt/seal5-baseline.yml
+ 
+ ENV PATH="/work/venv/bin:${PATH}"
+-ARG M2ISAR_REF=051d3354811e94f6ed61f4fdc54188370884e828
+-RUN git clone https://github.com/PhilippvK/M2-ISA-R.git /opt/m2isar && \
+-    git -C /opt/m2isar fetch origin ${M2ISAR_REF} && \
+-    git -C /opt/m2isar checkout FETCH_HEAD && pip install -e /opt/m2isar
+ 
+ RUN apt-get update && apt-get install -y zstd tar ccache
+ 
+@@ -23,9 +19,12 @@ COPY etiss_llvm/run_retarget.sh /scripts/run_retarget.sh
+ COPY llvm/run_retarget.sh /scripts/retarget_llvm.sh
+ COPY etiss/retarget.sh /scripts/retarget_etiss.sh
+ 
+-ENV PYTHONPATH="/opt/m2isar"
+-COPY etiss/fix_m2isar.py /scripts/fix_m2isar.py
+-RUN python /scripts/fix_m2isar.py /opt/m2isar
++
++# Use the same upstream typed model and Seal5 as GenIE local retargeting.
++COPY seal5-main/install.sh /opt/genie-seal5/install.sh
++COPY seal5-main/configure_baseline.py /opt/genie-seal5/configure_baseline.py
++RUN bash /opt/genie-seal5/install.sh
++ENV PYTHONPATH="/opt/genie-seal5/src:/opt/m2isar"
+ 
+ RUN chmod +x /scripts/*.sh
+ 
+diff --git a/worker/llvm/Dockerfile b/worker/llvm/Dockerfile
+index 806ccdd..d282370 100644
+--- a/worker/llvm/Dockerfile
++++ b/worker/llvm/Dockerfile
+@@ -4,6 +4,8 @@ FROM philippvk/isaac-quickstart-demo:cv32e40p-latest
+ 
+ WORKDIR /app
+ 
++ENV PATH="/work/venv/bin:${PATH}"
++
+ RUN cp /work/llvm/.seal5/settings.yml /opt/seal5-baseline.yml
+ 
+ RUN apt-get update && apt-get install -y zstd tar
+@@ -15,6 +17,12 @@ COPY worker.py job_state.py ./
+ COPY llvm/prepare.py /scripts/prepare_llvm.py
+ COPY llvm/run_retarget.sh /scripts/run_retarget.sh
+ 
++# Use the same upstream typed model and Seal5 as GenIE local retargeting.
++COPY seal5-main/install.sh /opt/genie-seal5/install.sh
++COPY seal5-main/configure_baseline.py /opt/genie-seal5/configure_baseline.py
++RUN bash /opt/genie-seal5/install.sh
++ENV PYTHONPATH="/opt/genie-seal5/src:/opt/m2isar"
++
+ RUN chmod +x /scripts/run_retarget.sh
+ 
+ ARG ETISS_ARCH_REF=45e3067fcaac9e1cd79c4a008fa570c60055af92
+diff --git a/worker/llvm/prepare.py b/worker/llvm/prepare.py
+index 8433d53..cfa53db 100644
+--- a/worker/llvm/prepare.py
++++ b/worker/llvm/prepare.py
+@@ -14,7 +14,7 @@ def validate_models(directory):
+     for path in models:
+         with path.open("rb") as handle:
+             model = pickle.load(handle)
+-        instructions = sum(len(item.instructions) for item in model["sets"].values())
++        instructions = sum(len(item.instructions) for item in model.sets.values())
+         if not instructions:
+             raise RuntimeError(
+                 f"No instructions remain in {path.stem} after filtering. "
+@@ -45,6 +45,13 @@ def prepare(home, inputs, baseline):
+     # Uploaded settings must override the baked-in defaults, rather than union
+     # their filter lists with defaults that can hide invalid inputs on run one.
+     subprocess.run(command + ["load", "--overwrite", "--files", str(config)], check=True)
++    # Older baked-in baselines predate the supported-immediate inventory.
++    from seal5.settings import Seal5Settings
++    from seal5.tools.llvm import detect_llvm_imm_types
++    settings = Seal5Settings.from_yaml_file(meta / "settings.yml")
++    if settings.llvm.state.supported_imm_types is None:
++        settings.llvm.state.supported_imm_types = sorted(detect_llvm_imm_types(home))
++    settings.save()
+     subprocess.run(command + ["transform"], check=True)
+     validate_models(meta / "models")
+ 
+diff --git a/worker/spike/Dockerfile b/worker/spike/Dockerfile
+index dc92c1b..0c2718b 100644
+--- a/worker/spike/Dockerfile
++++ b/worker/spike/Dockerfile
+@@ -4,9 +4,9 @@ FROM ${SPIKE_BASE_IMAGE}
+ WORKDIR /app
+ RUN apt-get update && apt-get install -y --no-install-recommends zstd tar build-essential git python3-pip && \
+     rm -rf /var/lib/apt/lists/*
+-ARG M2ISAR_REF=a2a9a9c87bdd97eca3ed6997af3656960b38c215
++ARG M2ISAR_REF=59ba470011fafe5e814a2b9ca9504d8175fe25cc
+ ARG ETISS_ARCH_REF=45e3067fcaac9e1cd79c4a008fa570c60055af92
+-RUN git clone https://github.com/PhilippvK/M2-ISA-R.git /opt/m2isar && \
++RUN git clone https://github.com/tum-ei-eda/M2-ISA-R.git /opt/m2isar && \
+     git -C /opt/m2isar fetch origin ${M2ISAR_REF} && \
+     git -C /opt/m2isar checkout FETCH_HEAD && pip3 install /opt/m2isar
+ ENV PYTHONPATH="/opt/m2isar"

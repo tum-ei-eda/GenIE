@@ -1,0 +1,13 @@
+---
+# Combine with cfg/local.yml or cfg/service.yml and your workload configuration.
+ISS: spike
+TARGET: spike_bm
+SPIKE_RUNTIME: htif
+ARCH: rv32im_zicsr_zifencei
+ABI: ilp32
+FPU: none
+# Match the Spike executable and headers used to build/load the plugin.
+# SPIKE_EXE: /path/to/spike/bin/spike
+# SPIKE_INSTALL_DIR: /path/to/spike
+# ISAAC_GNU_INSTALL_DIR: /path/to/rv32im-ilp32-toolchain
+# USE_SPIKE_SERVICE: true

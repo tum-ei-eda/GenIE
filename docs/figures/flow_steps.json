@@ -1,0 +1,1175 @@
+{
+  "DefaultGenIEFlow": [
+    {
+      "id": "Misc.VerifyConfig",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Misc.CheckDeps",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Docker.StartMemgraphDB",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.Demo",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupMemgraph",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Misc.CheckMemgraph",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupPython",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupCCache",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupMgclient",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupLLVM",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupETISS",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupMLonMCU",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupM2ISAR",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.Bench",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.Trace",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CreateSession",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.LoadConfig",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.LoadArtifacts",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.Analyze",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.Visualize",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.PickChoices",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.ReportChoices",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.PurgeCDFGDB",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.PushCDFG",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.QueryCandidates",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateInstrs",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateETISSCore",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetLLVM(splitted=False)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetLLVM(splitted=True)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetISS",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISEBench",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CompareISEBench",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISEBench(per_instr=True)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CompareISEBench(per_instr=True)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.FilterCandidates",
+      "in_stage": "initial",
+      "out_stage": "filtered"
+    },
+    {
+      "id": "ISAAC.CreateSpecGraph",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateInstrs(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateETISSCore(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "Misc.FixPermissions",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "CI.CreateSummary",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "CI.PrepareUploads",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Misc.CleanupTempFiles",
+      "in_stage": null,
+      "out_stage": null
+    }
+  ],
+  "ISSEvaluationFlow": [
+    {
+      "id": "Misc.VerifyConfig",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Misc.CheckDeps",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Docker.StartMemgraphDB",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.Demo",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupMemgraph",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Misc.CheckMemgraph",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupPython",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupCCache",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupMgclient",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupLLVM",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupETISS",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupMLonMCU",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupM2ISAR",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.Bench",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.Trace",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CreateSession",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.LoadConfig",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.LoadArtifacts",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.Analyze",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.Visualize",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.PickChoices",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.ReportChoices",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.PurgeCDFGDB",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.PushCDFG",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.QueryCandidates",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateInstrs",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignEncodingScore",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateETISSCore",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetLLVM(splitted=False)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetLLVM(splitted=True)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetISS",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignSeal5Score",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISEBench",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CompareISEBench",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignComparisonMetrics",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISEBench(per_instr=True)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CompareISEBench(per_instr=True)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISETrace",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.Reanalyze",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CreateReanalysisDiff",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignUtilizationScore",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.ScoreCandidates",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.SortCandidates",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.FilterCandidates",
+      "in_stage": "initial",
+      "out_stage": "filtered"
+    },
+    {
+      "id": "ISAAC.CreateSpecGraph",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateInstrs(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateETISSCore(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "Misc.FixPermissions",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "CI.CreateSummary",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "CI.PrepareUploads",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Misc.CleanupTempFiles",
+      "in_stage": null,
+      "out_stage": null
+    }
+  ],
+  "PerfSimGenIEFlow": [
+    {
+      "id": "Misc.VerifyConfig",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Misc.CheckDeps",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Docker.StartMemgraphDB",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.Demo",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupMemgraph",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Misc.CheckMemgraph",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupPython",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupCCache",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupMgclient",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupLLVM",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupETISS",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupMLonMCU",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupM2ISAR",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.PerfSimBench",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.PerfSimTrace",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CreateSession",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.LoadConfig",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.LoadArtifacts",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.Analyze",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.Visualize",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.PickChoices",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.ReportChoices",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.PurgeCDFGDB",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.PushCDFG",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.QueryCandidates",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateInstrs",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateETISSCore",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetLLVM(splitted=False)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetLLVM(splitted=True)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RunHLS",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignHLSScore",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetPerfSim",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISEPerfSimBench",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CompareISEPerfSimBench",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISEPerfSimBench(per_instr=True)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CompareISEBench(per_instr=True)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.FilterCandidates",
+      "in_stage": "initial",
+      "out_stage": "filtered"
+    },
+    {
+      "id": "ISAAC.CreateSpecGraph",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateInstrs(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateETISSCore(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "Misc.FixPermissions",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "CI.CreateSummary",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "CI.PrepareUploads",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Misc.CleanupTempFiles",
+      "in_stage": null,
+      "out_stage": null
+    }
+  ],
+  "HardwareSelectionFlow": [
+    {
+      "id": "Misc.VerifyConfig",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Misc.CheckDeps",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Docker.StartMemgraphDB",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.Demo",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupMemgraph",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Misc.CheckMemgraph",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupPython",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupCCache",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupMgclient",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupLLVM",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupETISS",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupMLonMCU",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Setup.SetupM2ISAR",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.Bench",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.Trace",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CreateSession",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.LoadConfig",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.LoadArtifacts",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.Analyze",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.Visualize",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.PickChoices",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.ReportChoices",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.PurgeCDFGDB",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.PushCDFG",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.QueryCandidates",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateInstrs",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignEncodingScore",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateETISSCore",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetLLVM(splitted=False)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetLLVM(splitted=True)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetISS",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignSeal5Score",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISEBench",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CompareISEBench",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignComparisonMetrics",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISEBench(per_instr=True)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CompareISEBench(per_instr=True)",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISETrace",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.Reanalyze",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CreateReanalysisDiff",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignUtilizationScore",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.ScoreCandidates",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.SortCandidates",
+      "in_stage": "initial",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.FilterCandidates",
+      "in_stage": "initial",
+      "out_stage": "filtered"
+    },
+    {
+      "id": "ISAAC.CreateSpecGraph",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateInstrs(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignEncodingScore(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateETISSCore(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetLLVM(in_stage=filtered,splitted=False)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetLLVM(in_stage=filtered,splitted=True)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetISS(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignSeal5Score(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISEBench(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CompareISEBench(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignComparisonMetrics(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISEBench(in_stage=filtered,per_instr=True)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CompareISEBench(in_stage=filtered,per_instr=True)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISETrace(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.Reanalyze(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CreateReanalysisDiff(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignUtilizationScore(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RunHLS(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignHLSScore(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CollectImplementationMetrics(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.ScoreCandidates(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.SortCandidates(in_stage=filtered)",
+      "in_stage": "filtered",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.SelectWithSpecializations",
+      "in_stage": "filtered",
+      "out_stage": "filtered_selected"
+    },
+    {
+      "id": "ISAAC.SelectCandidates(in_stage=filtered_selected,out_stage=final)",
+      "in_stage": "filtered_selected",
+      "out_stage": "final"
+    },
+    {
+      "id": "ISAAC.GenerateInstrs(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignEncodingScore(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.GenerateETISSCore(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetLLVM(in_stage=final,splitted=False)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetLLVM(in_stage=final,splitted=True)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RetargetISS(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignSeal5Score(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISEBench(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CompareISEBench(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignComparisonMetrics(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISEBench(in_stage=final,per_instr=True)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CompareISEBench(in_stage=final,per_instr=True)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "MLonMCU.ISETrace(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.Reanalyze(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CreateReanalysisDiff(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignUtilizationScore(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RunHLS(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignHLSScore(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.CollectImplementationMetrics(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.ScoreCandidates(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.SortCandidates(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RunASIPSynthesis(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.RunFPGASynthesis(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "ISAAC.AssignSynthesisMetrics(in_stage=final)",
+      "in_stage": "final",
+      "out_stage": null
+    },
+    {
+      "id": "Misc.FixPermissions",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "CI.CreateSummary",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "CI.PrepareUploads",
+      "in_stage": null,
+      "out_stage": null
+    },
+    {
+      "id": "Misc.CleanupTempFiles",
+      "in_stage": null,
+      "out_stage": null
+    }
+  ]
+}

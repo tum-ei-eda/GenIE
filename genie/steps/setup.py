@@ -8,7 +8,9 @@ from genie.config import Variable
 from genie.state import State
 from genie.common import Path
 from .utils import is_populated, clone
-from .common_vars import ccache_vars, force_refresh_var
+from .common_vars import ccache_vars, force_refresh_var, seal5_source_var
+from genie.upstream import DEMO_REVISION, SEAL5_BASE_REVISION, REVISIONS, checkout_provenance
+from .iss import iss_vars, target_var, iss_backend, iss_target
 
 
 def clone_demo_repo(url, dest, **kwargs):
@@ -22,6 +24,7 @@ def clone_demo_repo(url, dest, **kwargs):
         "seal5",  # TODO: via pip?
         "mgclient",  # TODO: prebuilt?
         "etiss_arch_riscv",
+        "isaac-docker-service",
     ]
     clone(url, dest, submodules=submodules, recursive=True, **kwargs)
 
@@ -49,6 +52,7 @@ class SetupDemo(GenIEStep):
             "DEMO_REF",
             Optional[str],
             "Checkout non-default branch or tag",
+            default=DEMO_REVISION,
         ),
         force_refresh_var,
     ]
@@ -74,6 +78,14 @@ class SetupDemo(GenIEStep):
         demo_dir = pathlib.Path(demo_dir)
         assert demo_dir.is_dir()
         paths_updates["demo.dir"] = demo_dir
+        import json
+        provenance = pathlib.Path(self.step_dir) / "upstream_sources.json"
+        provenance.parent.mkdir(parents=True, exist_ok=True)
+        sources = checkout_provenance(demo_dir)
+        provenance.write_text(json.dumps(sources, indent=2) + "\n")
+        paths_updates["demo.provenance_json"] = provenance
+        if sources["demo"]["revision"]:
+            metrics_updates["demo.revision"] = sources["demo"]["revision"]
         install_dir = demo_dir / "install"
         install_dir = pathlib.Path(install_dir)
         install_dir.mkdir(exist_ok=True)
@@ -301,6 +313,7 @@ class SetupMLonMCU(GenIEStep):
     outputs = []
 
     config_vars = [
+        *iss_vars, target_var,
         # TODO: get mlonmcu via pip
         Variable(
             "MLONMCU_DIR",
@@ -357,8 +370,10 @@ class SetupMLonMCU(GenIEStep):
         # new_pythonpath = f"{mlonmcu_dir}:{pythonpath}"
         # env["PYTHONPATH"] = new_pythonpath
         llvm_install_dir = state_in.paths["llvm.install_dir"]
-        etiss_install_dir = state_in.paths["etiss.install_dir"]
-        etiss_src_dir = state_in.paths["etiss.src_dir"]
+        etiss_install_dir = state_in.paths.get("etiss.install_dir", install_dir / "etiss")
+        etiss_src_dir = state_in.paths.get("etiss.src_dir", demo_dir / "etiss")
+        env["ISS"] = iss_backend(config)
+        env["SPIKE_RUNTIME"] = "pk" if iss_target(config) == "spike_pk" else config.get("SPIKE_RUNTIME", "htif")
         env["LLVM_INSTALL_DIR"] = llvm_install_dir
         env["ETISS_DIR"] = etiss_src_dir
         env["ETISS_INSTALL_DIR"] = etiss_install_dir
@@ -373,16 +388,28 @@ class SetupMLonMCU(GenIEStep):
 
 @GenIEStep.factory.register()
 class SetupM2ISAR(GenIEStep):
-    """Install the checked-out M2-ISA-R package into the setup environment."""
+    """Install the pinned upstream typed M2-ISA-R."""
     id = "Setup.SetupM2ISAR"
     name = long_name = "Setup M2ISAR"
     inputs = []
     outputs = []
-    config_vars = [Variable("M2ISAR_SRC_DIR", Optional[Path], "Existing M2-ISA-R source tree.")]
+    config_vars = [Variable("M2ISAR_SRC_DIR", Optional[Path], "Existing upstream M2-ISA-R source tree.")]
 
     def run(self, state_in, **kwargs):
         kwargs, env = self.extract_env(kwargs)
-        source = pathlib.Path(self.config.get("M2ISAR_SRC_DIR") or pathlib.Path(state_in.paths["demo.dir"]) / "M2-ISA-R")
+        source = self.config.get("M2ISAR_SRC_DIR")
+        if source is None:
+            from git import Repo
+            source = pathlib.Path(state_in.paths["install.dir"]) / "m2isar"
+            if not (source / ".git").exists():
+                demo_source = pathlib.Path(state_in.paths["demo.dir"]) / "M2-ISA-R"
+                url = str(demo_source) if (demo_source / ".git").exists() else "https://github.com/tum-ei-eda/M2-ISA-R.git"
+                clone(url, source, branch=REVISIONS["M2-ISA-R"])
+            repo = Repo(source)
+            if repo.head.commit.hexsha != REVISIONS["M2-ISA-R"] or repo.is_dirty(untracked_files=True):
+                raise RuntimeError(f"M2-ISA-R checkout must match the pinned upstream revision: {source}. "
+                                   "Use M2ISAR_SRC_DIR for an explicit source override.")
+        source = pathlib.Path(source)
         python = pathlib.Path(state_in.paths["venv.dir"]) / "bin" / "python"
         if not python.is_file():
             raise FileNotFoundError(python)
@@ -390,6 +417,40 @@ class SetupM2ISAR(GenIEStep):
             raise FileNotFoundError(source)
         self.run_subprocess([python, "-m", "pip", "install", "-e", source], env=env, check=True, **kwargs)
         return {}, {}, {"m2isar.src_dir": source}
+
+
+@GenIEStep.factory.register()
+class SetupSeal5(GenIEStep):
+    """Install the pinned upstream typed-parser Seal5."""
+    id = "Setup.SetupSeal5"
+    name = long_name = "Setup Seal5"
+    inputs = []
+    outputs = []
+    config_vars = [seal5_source_var,
+        Variable("USE_SEAL5_SERVICE", bool, "Retarget LLVM through the job API.", default=False),
+        Variable("USE_SEAL5_DOCKER", bool, "Use a prebuilt Seal5 container.", default=False)]
+
+    def run(self, state_in, **kwargs):
+        if self.config["USE_SEAL5_SERVICE"] or self.config["USE_SEAL5_DOCKER"]:
+            return {}, {}, {}
+        from git import Repo
+        kwargs, env = self.extract_env(kwargs)
+        source = self.config.get("SEAL5_SRC_DIR")
+        if source is None:
+            source = pathlib.Path(state_in.paths["install.dir"]) / "seal5"
+            # Preserve existing source trees; reject stale automatic checkouts.
+            if not (source / ".git").exists():
+                clone("https://github.com/tum-ei-eda/seal5.git", source, branch=SEAL5_BASE_REVISION)
+            repo = Repo(source)
+            if repo.head.commit.hexsha != SEAL5_BASE_REVISION or repo.is_dirty(untracked_files=True):
+                raise RuntimeError(f"Seal5 checkout must match the pinned upstream revision: {source}. "
+                                   "Use SEAL5_SRC_DIR for an explicit source override.")
+        source = pathlib.Path(source)
+        if not (source / "seal5/model.py").is_file():
+            raise FileNotFoundError(source / "seal5/model.py")
+        python = pathlib.Path(state_in.paths["venv.dir"]) / "bin" / "python"
+        self.run_subprocess([python, "-m", "pip", "install", "-e", source], env=env, check=True, **kwargs)
+        return {}, {"seal5.base_revision": SEAL5_BASE_REVISION}, {"seal5.src_dir": source}
 
 
 @GenIEStep.factory.register()
@@ -453,6 +514,12 @@ class SetupPython(GenIEStep):
             env=env,
             check=check,
             **kwargs,
+        )
+        # The demo pins matplotlib 3.7, while current MLonMCU requires NumPy 2
+        # on Python >=3.10. Upgrade the plotting wheel after demo installation.
+        self.run_subprocess(
+            [venv_dir / "bin/python", "-m", "pip", "install", "matplotlib>=3.9,<4"],
+            env=env, check=True, **kwargs,
         )
         # print("subprocess_result", subprocess_result)
         # errors_count = 0466
