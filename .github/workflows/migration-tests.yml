@@ -86,7 +86,7 @@ jobs:
           source .venv/bin/activate
           python -m pip install --upgrade pip
           python -m pip install . pytest 'pyfakefs>=5.2.3,<7'
-          python -m pip install ./reference/M2-ISA-R ./reference/seal5 anytree dacite
+          python -m pip install ./reference/M2-ISA-R ./reference/seal5 anytree dacite networkx
           python -m pip check
       - name: Run migration tests with real toolkit utilities
         env:
