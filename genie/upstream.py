@@ -7,7 +7,7 @@ LLVM_BASE_REF = "isaacnew-base-4"
 REVISIONS = {
     "llvm-project": "1d0af5ca8c8e74bda11d683f908a8b6edae9a9f3",
     "M2-ISA-R": "59ba470011fafe5e814a2b9ca9504d8175fe25cc",
-    "isaac-toolkit": "43fae872a999e9bbbe491e9f173ad7aca8c070a4",
+    "isaac-toolkit": "439c6ec2d84df0ace1303c85fa56496f796097a8",
     "mlonmcu": "ee84b85f2d7bf4dd898717cb12a80cb05dc45250",
     "seal5": "b8d5e0932f68547b802fd53b7f4b75ed44a0daf1",
     "memgraph_experiments": "0e5dd5f97e948ca68a4092c30095d3952875d6d5",
